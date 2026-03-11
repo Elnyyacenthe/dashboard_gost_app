@@ -84,7 +84,7 @@ function UserDetailModal({ user, onClose, onRefresh }: {
               <p className="text-xs text-text-muted">{user.email}</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-text-muted hover:bg-surface-lighter transition-colors">
+          <button onClick={onClose} aria-label="Fermer" className="rounded-lg p-1.5 text-text-muted hover:bg-surface-lighter transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -182,7 +182,7 @@ function InviteModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: (
       <div className="w-full max-w-sm rounded-2xl border border-border/30 bg-surface-light shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-border/20 p-5">
           <h3 className="font-bold text-text">Ajouter un membre</h3>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-text-muted hover:bg-surface-lighter transition-colors">
+          <button onClick={onClose} aria-label="Fermer" className="rounded-lg p-1.5 text-text-muted hover:bg-surface-lighter transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -294,6 +294,7 @@ export default function UsersPage() {
     { key: 'actions', header: '',
       render: (u: Profile) => (
         <button onClick={e => { e.stopPropagation(); setSelectedUser(u); }}
+          aria-label={`Voir le profil de ${(u as Profile).username}`}
           className="rounded-lg p-1.5 text-text-muted border border-border/30 hover:bg-surface-lighter hover:text-text transition-colors">
           <Eye className="h-3.5 w-3.5" />
         </button>
@@ -339,6 +340,7 @@ export default function UsersPage() {
       render: (u: Profile) => (
         <div className="flex gap-1.5">
           <button onClick={e => { e.stopPropagation(); setSelectedUser(u); }}
+            aria-label={`Voir le profil de ${(u as Profile).username}`}
             className="rounded-lg p-1.5 text-text-muted border border-border/30 hover:bg-surface-lighter hover:text-text transition-colors">
             <Eye className="h-3.5 w-3.5" />
           </button>
