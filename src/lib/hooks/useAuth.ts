@@ -9,6 +9,7 @@ interface AuthState {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 export function useAuth() {
@@ -18,6 +19,7 @@ export function useAuth() {
     session: null,
     loading: true,
     isAdmin: false,
+    isSuperAdmin: false,
   });
 
   // Cache en mémoire : évite de re-fetcher si déjà chargé
@@ -59,17 +61,18 @@ export function useAuth() {
               profile,
               session,
               loading: false,
-              isAdmin: profile?.role === 'admin',
+              isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
+              isSuperAdmin: profile?.role === 'super_admin',
             });
           } else {
-            setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false });
+            setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false });
           }
         } else if (event === 'SIGNED_OUT') {
           profileCache.current.clear();
-          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false });
+          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false });
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Pas besoin de re-fetcher le profil, juste mettre à jour la session
-          setAuthState(prev => ({ ...prev, session }));
+          setAuthState(prev => ({ ...prev, session, isSuperAdmin: prev.profile?.role === 'super_admin' ?? false }));
         }
       }
     );
@@ -93,9 +96,9 @@ export function useAuth() {
       );
     }
 
-    if (profile.role !== 'admin') {
+    if (profile.role !== 'admin' && profile.role !== 'super_admin') {
       await supabase.auth.signOut();
-      throw new Error(`Accès refusé. Rôle actuel : "${profile.role}". Rôle requis : "admin".`);
+      throw new Error(`Accès refusé. Rôle actuel : "${profile.role}". Rôle requis : "admin" ou "super_admin".`);
     }
 
     return { user: data.user, profile };

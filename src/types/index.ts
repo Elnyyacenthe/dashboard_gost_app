@@ -20,7 +20,7 @@ export interface Profile {
   username: string;
   email: string;
   avatar_url: string | null;
-  role: 'admin' | 'user' | 'moderator';
+  role: 'super_admin' | 'admin' | 'moderator' | 'user';
   coins: number;
   is_blocked: boolean;
   created_at: string;

@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import { useAuth } from '../lib/hooks/useAuth';
 
 export default function AdminLayout() {
-  const { user, profile, loading, isAdmin, signOut } = useAuth();
+  const { user, profile, loading, isAdmin, isSuperAdmin, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -25,7 +25,7 @@ export default function AdminLayout() {
     <div className="min-h-screen bg-surface">
       <Sidebar onSignOut={signOut} />
       <div className="ml-64">
-        <Header profile={profile} onSignOut={signOut} />
+        <Header profile={profile} onSignOut={signOut} isSuperAdmin={isSuperAdmin} />
         <main className="p-6">
           <Outlet />
         </main>

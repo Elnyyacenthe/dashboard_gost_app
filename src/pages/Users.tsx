@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   ShieldAlert, ShieldCheck, RotateCcw, Eye,
-  UserPlus, Crown, Shield, User, X, Check, Loader2
+  UserPlus, Crown, Shield, User, X, Check, Loader2, Wallet
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import DataTable from '../components/DataTable';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../lib/hooks/useAuth';
 import type { Profile } from '../types';
 
 type Tab = 'players' | 'team';
-type Role = 'admin' | 'moderator' | 'user';
+type Role = 'super_admin' | 'admin' | 'moderator' | 'user';
 
 const roleConfig: Record<Role, { label: string; color: string; icon: React.ReactNode }> = {
-  admin:     { label: 'Admin',      color: 'bg-primary/15 text-primary',         icon: <Crown className="h-3 w-3" /> },
-  moderator: { label: 'Modérateur', color: 'bg-info/15 text-info',               icon: <Shield className="h-3 w-3" /> },
-  user:      { label: 'Joueur',     color: 'bg-surface-lighter text-text-muted', icon: <User className="h-3 w-3" /> },
+  super_admin: { label: 'Super Admin', color: 'bg-warning/15 text-warning',          icon: <Crown className="h-3 w-3" /> },
+  admin:       { label: 'Admin',       color: 'bg-primary/15 text-primary',           icon: <Crown className="h-3 w-3" /> },
+  moderator:   { label: 'Modérateur',  color: 'bg-info/15 text-info',                 icon: <Shield className="h-3 w-3" /> },
+  user:        { label: 'Joueur',      color: 'bg-surface-lighter text-text-muted',   icon: <User className="h-3 w-3" /> },
 };
 
 function RoleBadge({ role }: { role: Role }) {
@@ -42,8 +44,14 @@ function StatusBadge({ blocked }: { blocked: boolean }) {
 function UserDetailModal({ user, onClose, onRefresh }: {
   user: Profile; onClose: () => void; onRefresh: () => void;
 }) {
-  const [saving, setSaving] = useState(false);
+  const { isSuperAdmin } = useAuth();
+  const [saving, setSaving]           = useState(false);
+  const [savingCoins, setSavingCoins] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role>(user.role as Role);
+  const [coinInput, setCoinInput]     = useState(String(user.coins));
+  const [coinSuccess, setCoinSuccess] = useState(false);
+  const [coinError, setCoinError]     = useState('');
+  const canEditPlayerCoins = isSuperAdmin && user.role === 'user';
 
   const handleRoleChange = async () => {
     setSaving(true);
@@ -58,14 +66,35 @@ function UserDetailModal({ user, onClose, onRefresh }: {
   };
 
   const handleResetCoins = async () => {
+    if (!canEditPlayerCoins) return;
     if (!confirm('Remettre les coins à 0 ?')) return;
     await supabase.from('profiles').update({ coins: 0 }).eq('id', user.id);
+    await supabase.from('user_profiles').update({ coins: 0 }).eq('id', user.id);
     onRefresh(); onClose();
   };
 
+  const handleSetCoins = async () => {
+    if (!canEditPlayerCoins) return;
+    const val = parseInt(coinInput, 10);
+    if (isNaN(val) || val < 0) { setCoinError('Montant invalide (nombre entier ≥ 0 requis)'); return; }
+    setCoinError('');
+    setSavingCoins(true);
+    const [r1, r2] = await Promise.all([
+      supabase.from('profiles').update({ coins: val }).eq('id', user.id),
+      supabase.from('user_profiles').update({ coins: val }).eq('id', user.id),
+    ]);
+    setSavingCoins(false);
+    if (r1.error && r2.error) { setCoinError('Erreur lors de la mise à jour.'); return; }
+    setCoinSuccess(true);
+    onRefresh();
+    setTimeout(() => { setCoinSuccess(false); onClose(); }, 1200);
+  };
+
+  const quickAmounts = [100, 500, 1000, 5000];
+
   const rows: { label: string; value: React.ReactNode }[] = [
-    { label: 'ID',                 value: user.id.slice(0, 20) + '...' },
-    { label: 'Coins',              value: user.coins.toLocaleString() },
+    { label: 'ID',                 value: <span className="font-mono text-xs">{user.id.slice(0, 20)}…</span> },
+    { label: 'Coins actuels',      value: <span className="font-semibold text-primary">{user.coins.toLocaleString()} 🪙</span> },
     { label: 'Statut',             value: <StatusBadge blocked={user.is_blocked} /> },
     { label: 'Inscription',        value: format(new Date(user.created_at), 'dd MMM yyyy HH:mm', { locale: fr }) },
     { label: 'Dernière connexion', value: user.last_seen ? format(new Date(user.last_seen), 'dd MMM yyyy HH:mm', { locale: fr }) : 'Jamais' },
@@ -89,7 +118,8 @@ function UserDetailModal({ user, onClose, onRefresh }: {
           </button>
         </div>
 
-        <div className="space-y-3 p-5">
+        <div className="max-h-[80vh] overflow-y-auto space-y-3 p-5">
+          {/* Infos */}
           <div className="rounded-xl bg-surface p-4 space-y-3">
             {rows.map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between text-sm">
@@ -99,6 +129,68 @@ function UserDetailModal({ user, onClose, onRefresh }: {
             ))}
           </div>
 
+          {/* ── Modifier la caisse (super_admin uniquement) ── */}
+          {canEditPlayerCoins && (
+            <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-warning" />
+                <p className="text-sm font-semibold text-warning">Modifier la caisse</p>
+                <span className="ml-auto rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning uppercase tracking-wide">
+                  Super Admin
+                </span>
+              </div>
+
+              {coinError && (
+                <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{coinError}</p>
+              )}
+              {coinSuccess && (
+                <p className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-2 text-xs text-success">
+                  <Check className="h-3 w-3" /> Caisse mise à jour !
+                </p>
+              )}
+
+              {/* Raccourcis rapides */}
+              <div>
+                <p className="mb-1.5 text-xs text-text-muted">Ajouter rapidement</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {quickAmounts.map(amt => (
+                    <button key={amt} type="button"
+                      onClick={() => setCoinInput(String(Math.max(0, (parseInt(coinInput) || 0) + amt)))}
+                      className="rounded-lg border border-border/30 px-2.5 py-1 text-xs font-medium text-text-muted hover:border-primary/40 hover:text-primary transition-colors">
+                      +{amt.toLocaleString()}
+                    </button>
+                  ))}
+                  {quickAmounts.map(amt => (
+                    <button key={`-${amt}`} type="button"
+                      onClick={() => setCoinInput(String(Math.max(0, (parseInt(coinInput) || 0) - amt)))}
+                      className="rounded-lg border border-border/30 px-2.5 py-1 text-xs font-medium text-text-muted hover:border-danger/40 hover:text-danger transition-colors">
+                      -{amt.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Saisie manuelle */}
+              <div>
+                <p className="mb-1.5 text-xs text-text-muted">Montant exact</p>
+                <div className="flex gap-2">
+                  <input
+                    type="number" min="0" value={coinInput}
+                    onChange={e => { setCoinInput(e.target.value); setCoinError(''); }}
+                    className="flex-1 rounded-xl border border-border/30 bg-surface px-3 py-2 text-sm text-text focus:border-warning focus:outline-none focus:ring-1 focus:ring-warning transition-colors"
+                    placeholder="0"
+                  />
+                  <button type="button" onClick={handleSetCoins} disabled={savingCoins || coinSuccess}
+                    className="flex items-center gap-2 rounded-xl bg-warning px-4 py-2 text-sm font-semibold text-white hover:bg-warning/80 disabled:opacity-50 transition-colors">
+                    {savingCoins ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Appliquer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rôle */}
           <div className="rounded-xl bg-surface p-4">
             <p className="mb-3 text-sm font-medium text-text">Changer le rôle</p>
             <div className="flex gap-2">
@@ -120,6 +212,7 @@ function UserDetailModal({ user, onClose, onRefresh }: {
             )}
           </div>
 
+          {/* Actions */}
           <div className="flex gap-2">
             <button onClick={handleToggleBlock}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-colors ${
@@ -128,11 +221,13 @@ function UserDetailModal({ user, onClose, onRefresh }: {
               {user.is_blocked ? <ShieldCheck className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
               {user.is_blocked ? 'Débloquer' : 'Bloquer'}
             </button>
-            <button onClick={handleResetCoins}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-warning/10 py-2.5 text-sm font-medium text-warning hover:bg-warning/20 transition-colors">
-              <RotateCcw className="h-4 w-4" />
-              Reset coins
-            </button>
+            {canEditPlayerCoins && (
+              <button onClick={handleResetCoins}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-warning/10 py-2.5 text-sm font-medium text-warning hover:bg-warning/20 transition-colors">
+                <RotateCcw className="h-4 w-4" />
+                Reset coins
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import type { Profile } from '../types';
 interface HeaderProps {
   profile: Profile | null;
   onSignOut: () => void;
+  isSuperAdmin?: boolean;
 }
 
 interface Notif {
@@ -75,7 +76,7 @@ const notifIcon: Record<Notif['type'], React.ReactNode> = {
   info:        <Info className="h-4 w-4 text-info" />,
 };
 
-export default function Header({ profile, onSignOut }: HeaderProps) {
+export default function Header({ profile, onSignOut, isSuperAdmin = false }: HeaderProps) {
   const [showMenu, setShowMenu]   = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [notifs, setNotifs]       = useState<Notif[]>([]);
@@ -244,8 +245,10 @@ export default function Header({ profile, onSignOut }: HeaderProps) {
               <div className="border-b border-border/20 px-4 py-3">
                 <p className="text-sm font-semibold text-text">{profile?.username}</p>
                 <p className="text-xs text-text-muted truncate">{profile?.email}</p>
-                <span className="mt-1 inline-flex items-center rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
-                  ADMIN
+                <span className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  isSuperAdmin ? 'bg-warning/15 text-warning' : 'bg-primary/15 text-primary'
+                }`}>
+                  {isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN'}
                 </span>
               </div>
               <button
