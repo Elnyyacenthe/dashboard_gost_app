@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -7,21 +8,50 @@ import {
   Settings,
   LogOut,
   Dice5,
+  MessageSquare,
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface SidebarProps {
   onSignOut: () => void;
 }
 
-const navItems = [
-  { to: '/dashboard/overview', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/dashboard/users', icon: Users, label: 'Utilisateurs' },
-  { to: '/dashboard/games', icon: Gamepad2, label: 'Parties' },
-  { to: '/dashboard/analytics', icon: BarChart3, label: 'Statistiques' },
-  { to: '/dashboard/settings', icon: Settings, label: 'Paramètres' },
-];
+function useUnreadSupport() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { count: c } = await supabase
+        .from('support_tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('unread_admin', true);
+      setCount(c ?? 0);
+    };
+    fetch();
+
+    const sub = supabase
+      .channel('sidebar-support-unread')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, fetch)
+      .subscribe();
+
+    return () => { sub.unsubscribe(); };
+  }, []);
+
+  return count;
+}
 
 export default function Sidebar({ onSignOut }: SidebarProps) {
+  const unreadSupport = useUnreadSupport();
+
+  const navItems = [
+    { to: '/dashboard/overview',   icon: LayoutDashboard, label: 'Overview',       badge: 0 },
+    { to: '/dashboard/users',      icon: Users,           label: 'Utilisateurs',   badge: 0 },
+    { to: '/dashboard/games',      icon: Gamepad2,        label: 'Parties',        badge: 0 },
+    { to: '/dashboard/analytics',  icon: BarChart3,       label: 'Statistiques',   badge: 0 },
+    { to: '/dashboard/support',    icon: MessageSquare,   label: 'Service Client', badge: unreadSupport },
+    { to: '/dashboard/settings',   icon: Settings,        label: 'Paramètres',     badge: 0 },
+  ];
+
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border/20 bg-surface-light">
       {/* Logo */}
@@ -49,8 +79,13 @@ export default function Sidebar({ onSignOut }: SidebarProps) {
               }`
             }
           >
-            <item.icon className="h-5 w-5" />
-            {item.label}
+            <item.icon className="h-5 w-5 shrink-0" />
+            <span className="flex-1">{item.label}</span>
+            {item.badge > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+                {item.badge > 9 ? '9+' : item.badge}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

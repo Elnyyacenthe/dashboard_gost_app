@@ -59,6 +59,32 @@ export interface GameStats {
   win_rate: number;
 }
 
+// ─── Service client ────────────────────────────────────────────────────────
+export type TicketStatus   = 'open' | 'answered' | 'closed';
+export type TicketCategory = 'general' | 'paiement' | 'compte' | 'jeu' | 'bug';
+
+export interface SupportTicket {
+  id: string;
+  user_id: string;
+  username: string;
+  subject: string;
+  category: TicketCategory;
+  status: TicketStatus;
+  unread_user: boolean;
+  unread_admin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupportMessage {
+  id: string;
+  ticket_id: string;
+  sender_id: string | null;
+  is_admin: boolean;
+  content: string;
+  created_at: string;
+}
+
 // ─── Entrée leaderboard ────────────────────────────────────────────────────
 export interface LeaderboardEntry {
   id: string;
