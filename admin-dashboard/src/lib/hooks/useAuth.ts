@@ -31,7 +31,7 @@ export function useAuth() {
     if (cached) return cached;
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id, username, email, avatar_url, role, coins, is_blocked, created_at, last_seen')
       .eq('id', userId)
       .maybeSingle();
