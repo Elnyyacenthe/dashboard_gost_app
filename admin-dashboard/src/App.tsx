@@ -7,6 +7,7 @@ import GamesPage from './pages/Games';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import SupportPage from './pages/Support';
+import TreasuryPage from './pages/Treasury';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="games" element={<GamesPage />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="support" element={<SupportPage />} />
+          <Route path="treasury" element={<TreasuryPage />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
