@@ -1,20 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Gamepad2, Trophy, TrendingUp, Users, RefreshCw, Info } from 'lucide-react';
+import { Gamepad2, Trophy, TrendingUp, Users, RefreshCw, Dice5, Crown, Spade, Swords } from 'lucide-react';
 import StatsCard from '../components/StatsCard';
 import { supabase } from '../lib/supabaseClient';
 
 interface GameStat {
   label: string;
+  icon: React.ReactNode;
+  color: string;
   total_games: number;
   total_wins: number;
   win_rate: number;
   active_players: number;
 }
 
-// Les stats de jeu viennent des colonnes calculées sur user_profiles
-// car les parties sont stockées localement (Hive) dans l'app Flutter
+interface UserRow {
+  games_played: number | null;
+  games_won: number | null;
+  total_wins: number | null;
+  xp: number | null;
+  cora_games: number | null;
+  cora_wins: number | null;
+  dames_games: number | null;
+  dames_wins: number | null;
+  solitary_games: number | null;
+  ludo_games: number | null;
+}
+
 export default function GamesPage() {
   const [stats, setStats] = useState<GameStat[]>([]);
+  const [global, setGlobal] = useState<GameStat | null>(null);
   const [totalPlayers, setTotalPlayers] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -23,27 +37,63 @@ export default function GamesPage() {
     try {
       const { data } = await supabase
         .from('user_profiles')
-        .select('games_played, games_won, total_wins, xp');
+        .select('games_played, games_won, total_wins, xp, cora_games, cora_wins, dames_games, dames_wins, solitary_games, ludo_games');
 
       if (!data) return;
+      const rows = data as UserRow[];
 
-      setTotalPlayers(data.length);
+      setTotalPlayers(rows.length);
 
-      // On agrège les stats globales depuis user_profiles
-      const totalGames = data.reduce((s, p) => s + (p.games_played ?? 0), 0);
-      const totalWins  = data.reduce((s, p) => s + (p.total_wins ?? 0), 0);
-      const activePlayers = data.filter(p => (p.games_played ?? 0) > 0).length;
+      const sum = (key: keyof UserRow) => rows.reduce((s, r) => s + (r[key] ?? 0), 0);
+      const activeOn = (key: keyof UserRow) => rows.filter(r => (r[key] ?? 0) > 0).length;
+      const winRate = (wins: number, games: number) =>
+        games > 0 ? Math.min(100, Math.round((wins / games) * 100)) : 0;
 
-      // Note : les stats par jeu (Cora, Dames, Solitaire, Ludo) viennent
-      // de Hive local dans l'app — non disponibles côté Supabase.
-      // On affiche les stats globales disponibles.
+      // Stats globales (cumulées)
+      const totalGames = sum('games_played');
+      const totalWins  = sum('total_wins');
+      setGlobal({
+        label: 'Tous les jeux',
+        icon: <Gamepad2 className="h-4 w-4" />,
+        color: 'text-primary',
+        total_games: totalGames,
+        total_wins: totalWins,
+        win_rate: winRate(totalWins, totalGames),
+        active_players: activeOn('games_played'),
+      });
+
+      // Stats par jeu
+      const coraGames = sum('cora_games');
+      const coraWins  = sum('cora_wins');
+      const damesGames = sum('dames_games');
+      const damesWins  = sum('dames_wins');
+      const solitaryGames = sum('solitary_games');
+      const ludoGames  = sum('ludo_games');
+
       setStats([
         {
-          label: 'Tous les jeux',
-          total_games: totalGames,
-          total_wins: totalWins,
-          win_rate: totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0,
-          active_players: activePlayers,
+          label: 'Cora Dice', icon: <Dice5 className="h-4 w-4" />, color: 'text-success',
+          total_games: coraGames, total_wins: coraWins,
+          win_rate: winRate(coraWins, coraGames),
+          active_players: activeOn('cora_games'),
+        },
+        {
+          label: 'Dames', icon: <Crown className="h-4 w-4" />, color: 'text-warning',
+          total_games: damesGames, total_wins: damesWins,
+          win_rate: winRate(damesWins, damesGames),
+          active_players: activeOn('dames_games'),
+        },
+        {
+          label: 'Ludo', icon: <Swords className="h-4 w-4" />, color: 'text-info',
+          total_games: ludoGames, total_wins: 0,
+          win_rate: 0,
+          active_players: activeOn('ludo_games'),
+        },
+        {
+          label: 'Solitaire', icon: <Spade className="h-4 w-4" />, color: 'text-danger',
+          total_games: solitaryGames, total_wins: 0,
+          win_rate: 0,
+          active_players: activeOn('solitary_games'),
         },
       ]);
     } catch (e) {
@@ -69,46 +119,55 @@ export default function GamesPage() {
         </button>
       </div>
 
-      {/* Bandeau info */}
-      <div className="flex items-start gap-3 rounded-xl border border-info/20 bg-info/5 p-4">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
-        <div className="text-sm text-text-muted">
-          <p className="font-medium text-text mb-1">Données de jeu partiellement disponibles</p>
-          <p>Les parties actives en temps réel et les stats par jeu (Cora Dice, Dames, Solitaire, Ludo) sont stockées localement dans l'application (Hive). Seuls les totaux synchronisés dans <code className="rounded bg-surface px-1 py-0.5 text-xs text-primary">user_profiles</code> sont visibles ici.</p>
-        </div>
-      </div>
-
       {loading ? (
         <div className="flex h-40 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       ) : (
         <>
+          {/* Stats globales */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatsCard title="Total joueurs inscrits" value={totalPlayers.toLocaleString()} icon={<Users className="h-5 w-5" />} accent />
-            <StatsCard title="Joueurs ayant joué" value={(stats[0]?.active_players ?? 0).toLocaleString()} icon={<Gamepad2 className="h-5 w-5" />}
-              change={totalPlayers > 0 ? `${Math.round(((stats[0]?.active_players ?? 0) / totalPlayers) * 100)}% du total` : ''} changeType="neutral" />
-            <StatsCard title="Total parties jouées" value={(stats[0]?.total_games ?? 0).toLocaleString()} icon={<TrendingUp className="h-5 w-5" />} />
-            <StatsCard title="Win rate global" value={`${stats[0]?.win_rate ?? 0}%`} icon={<Trophy className="h-5 w-5" />} />
+            <StatsCard title="Joueurs ayant joué" value={(global?.active_players ?? 0).toLocaleString()} icon={<Gamepad2 className="h-5 w-5" />}
+              change={totalPlayers > 0 ? `${Math.round(((global?.active_players ?? 0) / totalPlayers) * 100)}% du total` : ''} changeType="neutral" />
+            <StatsCard title="Total parties jouées" value={(global?.total_games ?? 0).toLocaleString()} icon={<TrendingUp className="h-5 w-5" />} />
+            <StatsCard title="Win rate global" value={`${global?.win_rate ?? 0}%`} icon={<Trophy className="h-5 w-5" />} />
           </div>
 
-          {/* Pour avoir les stats par jeu, il faudra ajouter des colonnes dans Supabase */}
-          <div className="rounded-2xl border border-dashed border-border/30 bg-surface-light p-8 text-center">
-            <Gamepad2 className="mx-auto mb-3 h-10 w-10 text-text-muted/50" />
-            <p className="font-semibold text-text">Stats par jeu non disponibles</p>
-            <p className="mt-2 text-sm text-text-muted max-w-md mx-auto">
-              Pour voir les stats séparées par jeu (Cora Dice, Dames, Solitaire, Ludo),
-              il faut ajouter des colonnes dans <code className="text-primary">user_profiles</code> :
-            </p>
-            <div className="mt-4 rounded-xl bg-surface p-4 text-left text-xs font-mono text-text-muted max-w-lg mx-auto">
-              <p className="text-success">-- Ajouter dans Supabase SQL Editor :</p>
-              <p>ALTER TABLE user_profiles</p>
-              <p className="pl-4">ADD COLUMN IF NOT EXISTS cora_games   INTEGER DEFAULT 0,</p>
-              <p className="pl-4">ADD COLUMN IF NOT EXISTS cora_wins    INTEGER DEFAULT 0,</p>
-              <p className="pl-4">ADD COLUMN IF NOT EXISTS dames_games  INTEGER DEFAULT 0,</p>
-              <p className="pl-4">ADD COLUMN IF NOT EXISTS dames_wins   INTEGER DEFAULT 0,</p>
-              <p className="pl-4">ADD COLUMN IF NOT EXISTS solitary_games INTEGER DEFAULT 0,</p>
-              <p className="pl-4">ADD COLUMN IF NOT EXISTS ludo_games   INTEGER DEFAULT 0;</p>
+          {/* Stats par jeu */}
+          <div>
+            <h2 className="mb-4 text-lg font-bold text-text">Détail par jeu</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {stats.map((s) => (
+                <div key={s.label} className="rounded-2xl border border-border/20 bg-surface-light p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`rounded-lg bg-surface p-2 ${s.color}`}>{s.icon}</div>
+                    <h3 className="font-bold text-text">{s.label}</h3>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-text-muted">Parties jouées</span>
+                      <span className="font-semibold text-text">{s.total_games.toLocaleString()}</span>
+                    </div>
+                    {s.total_wins > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-text-muted">Victoires</span>
+                        <span className="font-semibold text-text">{s.total_wins.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {s.total_games > 0 && s.total_wins > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-text-muted">Win rate</span>
+                        <span className="font-semibold text-success">{s.win_rate}%</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm pt-2 border-t border-border/20">
+                      <span className="text-text-muted">Joueurs actifs</span>
+                      <span className="font-semibold text-primary">{s.active_players}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </>
