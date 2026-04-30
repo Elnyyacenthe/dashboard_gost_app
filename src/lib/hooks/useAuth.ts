@@ -31,7 +31,7 @@ export function useAuth() {
     if (cached) return cached;
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id, username, email, avatar_url, role, coins, is_blocked, created_at, last_seen')
       .eq('id', userId)
       .maybeSingle();
@@ -72,7 +72,7 @@ export function useAuth() {
           setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false });
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Pas besoin de re-fetcher le profil, juste mettre à jour la session
-          setAuthState(prev => ({ ...prev, session, isSuperAdmin: prev.profile?.role === 'super_admin' ?? false }));
+          setAuthState(prev => ({ ...prev, session, isSuperAdmin: (prev.profile?.role ?? '') === 'super_admin' }));
         }
       }
     );

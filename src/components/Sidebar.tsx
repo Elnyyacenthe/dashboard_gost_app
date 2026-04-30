@@ -9,8 +9,11 @@ import {
   LogOut,
   Dice5,
   MessageSquare,
+  Vault,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../lib/hooks/useAuth';
 
 interface SidebarProps {
   onSignOut: () => void;
@@ -40,17 +43,41 @@ function useUnreadSupport() {
   return count;
 }
 
+function useUnresolvedAlerts() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const fetch = async () => {
+      const { count: c } = await supabase
+        .from('admin_alerts')
+        .select('*', { count: 'exact', head: true })
+        .eq('resolved', false);
+      setCount(c ?? 0);
+    };
+    fetch();
+    const sub = supabase
+      .channel('sidebar-alerts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_alerts' }, fetch)
+      .subscribe();
+    return () => { sub.unsubscribe(); };
+  }, []);
+  return count;
+}
+
 export default function Sidebar({ onSignOut }: SidebarProps) {
   const unreadSupport = useUnreadSupport();
+  const unresolvedAlerts = useUnresolvedAlerts();
+  const { isSuperAdmin } = useAuth();
 
   const navItems = [
-    { to: '/dashboard/overview',   icon: LayoutDashboard, label: 'Overview',       badge: 0 },
-    { to: '/dashboard/users',      icon: Users,           label: 'Utilisateurs',   badge: 0 },
-    { to: '/dashboard/games',      icon: Gamepad2,        label: 'Parties',        badge: 0 },
-    { to: '/dashboard/analytics',  icon: BarChart3,       label: 'Statistiques',   badge: 0 },
-    { to: '/dashboard/support',    icon: MessageSquare,   label: 'Service Client', badge: unreadSupport },
-    { to: '/dashboard/settings',   icon: Settings,        label: 'Paramètres',     badge: 0 },
-  ];
+    { to: '/dashboard/overview',   icon: LayoutDashboard, label: 'Overview',       badge: 0,                show: true },
+    { to: '/dashboard/users',      icon: Users,           label: 'Utilisateurs',   badge: 0,                show: true },
+    { to: '/dashboard/games',      icon: Gamepad2,        label: 'Parties',        badge: 0,                show: true },
+    { to: '/dashboard/analytics',  icon: BarChart3,       label: 'Statistiques',   badge: 0,                show: true },
+    { to: '/dashboard/alerts',     icon: AlertTriangle,   label: 'Alertes',        badge: unresolvedAlerts, show: true },
+    { to: '/dashboard/treasury',   icon: Vault,           label: 'Trésorerie',     badge: 0,                show: isSuperAdmin },
+    { to: '/dashboard/support',    icon: MessageSquare,   label: 'Service Client', badge: unreadSupport,    show: true },
+    { to: '/dashboard/settings',   icon: Settings,        label: 'Paramètres',     badge: 0,                show: true },
+  ].filter(i => i.show);
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border/20 bg-surface-light">

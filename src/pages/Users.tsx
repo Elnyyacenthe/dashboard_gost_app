@@ -55,20 +55,19 @@ function UserDetailModal({ user, onClose, onRefresh }: {
 
   const handleRoleChange = async () => {
     setSaving(true);
-    await supabase.from('profiles').update({ role: selectedRole }).eq('id', user.id);
+    await supabase.from('user_profiles').update({ role: selectedRole }).eq('id', user.id);
     setSaving(false);
     onRefresh(); onClose();
   };
 
   const handleToggleBlock = async () => {
-    await supabase.from('profiles').update({ is_blocked: !user.is_blocked }).eq('id', user.id);
+    await supabase.from('user_profiles').update({ is_blocked: !user.is_blocked }).eq('id', user.id);
     onRefresh(); onClose();
   };
 
   const handleResetCoins = async () => {
     if (!canEditPlayerCoins) return;
     if (!confirm('Remettre les coins à 0 ?')) return;
-    await supabase.from('profiles').update({ coins: 0 }).eq('id', user.id);
     await supabase.from('user_profiles').update({ coins: 0 }).eq('id', user.id);
     onRefresh(); onClose();
   };
@@ -79,12 +78,9 @@ function UserDetailModal({ user, onClose, onRefresh }: {
     if (isNaN(val) || val < 0) { setCoinError('Montant invalide (nombre entier ≥ 0 requis)'); return; }
     setCoinError('');
     setSavingCoins(true);
-    const [r1, r2] = await Promise.all([
-      supabase.from('profiles').update({ coins: val }).eq('id', user.id),
-      supabase.from('user_profiles').update({ coins: val }).eq('id', user.id),
-    ]);
+    const { error } = await supabase.from('user_profiles').update({ coins: val }).eq('id', user.id);
     setSavingCoins(false);
-    if (r1.error && r2.error) { setCoinError('Erreur lors de la mise à jour.'); return; }
+    if (error) { setCoinError('Erreur lors de la mise à jour.'); return; }
     setCoinSuccess(true);
     onRefresh();
     setTimeout(() => { setCoinSuccess(false); onClose(); }, 1200);
@@ -248,7 +244,7 @@ function InviteModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: (
     setSaving(true); setError('');
 
     const { data } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id, username, role')
       .eq('email', email.trim().toLowerCase())
       .maybeSingle();
@@ -260,7 +256,7 @@ function InviteModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: (
     }
 
     const { error: updateErr } = await supabase
-      .from('profiles').update({ role }).eq('id', data.id);
+      .from('user_profiles').update({ role }).eq('id', data.id);
 
     if (updateErr) {
       setError('Erreur lors de la mise à jour du rôle.');
@@ -344,7 +340,7 @@ export default function UsersPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
-      .from('profiles').select('*').order('created_at', { ascending: false });
+      .from('user_profiles').select('*').order('created_at', { ascending: false });
     if (data) {
       setPlayers((data as Profile[]).filter(p => p.role === 'user'));
       setTeam((data as Profile[]).filter(p => p.role === 'admin' || p.role === 'moderator'));
@@ -356,7 +352,7 @@ export default function UsersPage() {
 
   const removeFromTeam = async (user: Profile) => {
     if (!confirm(`Révoquer l'accès dashboard de ${user.username} ?`)) return;
-    await supabase.from('profiles').update({ role: 'user' }).eq('id', user.id);
+    await supabase.from('user_profiles').update({ role: 'user' }).eq('id', user.id);
     fetchAll();
   };
 
