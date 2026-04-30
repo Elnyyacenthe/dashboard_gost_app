@@ -1,10 +1,17 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { useAuth } from '../lib/hooks/useAuth';
+import { useEffect } from 'react';
 
 export default function AdminLayout() {
   const { user, profile, loading, isAdmin, isSuperAdmin, signOut } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  // Close drawer on route change (mobile UX)
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   if (loading) {
     return (
@@ -23,10 +30,10 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <Sidebar onSignOut={signOut} />
-      <div className="ml-64">
-        <Header profile={profile} onSignOut={signOut} isSuperAdmin={isSuperAdmin} />
-        <main className="p-6">
+      <Sidebar onSignOut={signOut} open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <div className="lg:ml-64">
+        <Header profile={profile} onSignOut={signOut} isSuperAdmin={isSuperAdmin} onMenuClick={() => setMobileOpen(true)} />
+        <main className="p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

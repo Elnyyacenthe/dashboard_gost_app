@@ -11,12 +11,15 @@ import {
   MessageSquare,
   Vault,
   AlertTriangle,
+  X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
 
 interface SidebarProps {
   onSignOut: () => void;
+  open?: boolean;
+  onClose?: () => void;
 }
 
 function useUnreadSupport() {
@@ -63,7 +66,7 @@ function useUnresolvedAlerts() {
   return count;
 }
 
-export default function Sidebar({ onSignOut }: SidebarProps) {
+export default function Sidebar({ onSignOut, open = false, onClose }: SidebarProps) {
   const unreadSupport = useUnreadSupport();
   const unresolvedAlerts = useUnresolvedAlerts();
   const { isSuperAdmin } = useAuth();
@@ -80,16 +83,40 @@ export default function Sidebar({ onSignOut }: SidebarProps) {
   ].filter(i => i.show);
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border/20 bg-surface-light">
+    <>
+      {/* Mobile backdrop */}
+      {open && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border/20 bg-surface-light transition-transform duration-300 ease-out lg:translate-x-0 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-border/20 px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
-          <Dice5 className="h-5 w-5" />
+      <div className="flex h-16 items-center justify-between gap-3 border-b border-border/20 px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
+            <Dice5 className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-text">GOST</h1>
+            <p className="text-xs text-text-muted -mt-0.5">Admin Panel</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg font-bold text-text">GOST</h1>
-          <p className="text-xs text-text-muted -mt-0.5">Admin Panel</p>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer le menu"
+          className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface-lighter hover:text-text lg:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -120,6 +147,7 @@ export default function Sidebar({ onSignOut }: SidebarProps) {
       {/* Logout */}
       <div className="border-t border-border/20 p-3">
         <button
+          type="button"
           onClick={onSignOut}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-danger transition-all duration-200 hover:bg-danger/10"
         >
@@ -128,5 +156,6 @@ export default function Sidebar({ onSignOut }: SidebarProps) {
         </button>
       </div>
     </aside>
+    </>
   );
 }

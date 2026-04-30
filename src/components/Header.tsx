@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, LogOut, ChevronDown, UserX, RotateCcw, UserCheck, Info, X } from 'lucide-react';
+import { Bell, LogOut, ChevronDown, UserX, RotateCcw, UserCheck, Info, X, Menu } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../lib/supabaseClient';
@@ -9,6 +9,7 @@ interface HeaderProps {
   profile: Profile | null;
   onSignOut: () => void;
   isSuperAdmin?: boolean;
+  onMenuClick?: () => void;
 }
 
 interface Notif {
@@ -76,7 +77,7 @@ const notifIcon: Record<Notif['type'], React.ReactNode> = {
   info:        <Info className="h-4 w-4 text-info" />,
 };
 
-export default function Header({ profile, onSignOut, isSuperAdmin = false }: HeaderProps) {
+export default function Header({ profile, onSignOut, isSuperAdmin = false, onMenuClick }: HeaderProps) {
   const [showMenu, setShowMenu]   = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [notifs, setNotifs]       = useState<Notif[]>([]);
@@ -120,13 +121,23 @@ export default function Header({ profile, onSignOut, isSuperAdmin = false }: Hea
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/20 bg-surface/80 px-6 backdrop-blur-xl">
-      <div>
-        <h2 className="text-lg font-semibold text-text">Dashboard</h2>
-        <p className="text-xs text-text-muted">Bienvenue, {profile?.username ?? 'Admin'}</p>
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border/20 bg-surface/80 px-4 backdrop-blur-xl sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Ouvrir le menu"
+          className="-ml-1 rounded-lg p-2 text-text-muted transition-colors hover:bg-surface-lighter hover:text-text lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-text sm:text-lg">Dashboard</h2>
+          <p className="truncate text-xs text-text-muted">Bienvenue, {profile?.username ?? 'Admin'}</p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
 
         {/* ── Notifications ── */}
         <div ref={notifRef} className="relative">
@@ -145,7 +156,7 @@ export default function Header({ profile, onSignOut, isSuperAdmin = false }: Hea
           </button>
 
           {showNotif && (
-            <div className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-border/30 bg-surface-light shadow-2xl animate-fade-in">
+            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl border border-border/30 bg-surface-light shadow-2xl animate-fade-in sm:w-80">
               {/* Header panel */}
               <div className="flex items-center justify-between border-b border-border/20 px-4 py-3">
                 <div className="flex items-center gap-2">
