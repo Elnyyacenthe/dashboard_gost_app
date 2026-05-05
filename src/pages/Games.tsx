@@ -1,120 +1,154 @@
-import { useState, useEffect } from 'react';
-import { Gamepad2, Trophy, TrendingUp, Users, RefreshCw, Dice5, Crown, Spade, Swords } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Gamepad2, Trophy, TrendingUp, Users, RefreshCw, Coins,
+  ArrowDownCircle, ArrowUpCircle,
+} from 'lucide-react';
 import StatsCard from '../components/StatsCard';
 import { supabase } from '../lib/supabaseClient';
 
-interface GameStat {
-  label: string;
-  icon: React.ReactNode;
-  color: string;
-  total_games: number;
-  total_wins: number;
-  win_rate: number;
-  active_players: number;
+interface MovementRow {
+  game_type: string;
+  user_id: string | null;
+  movement_type: string;
+  amount: number;
+  game_id: string | null;
+  pot_total: number | null;
+  created_at: string;
 }
 
-interface UserRow {
-  games_played: number | null;
-  games_won: number | null;
-  total_wins: number | null;
-  xp: number | null;
-  cora_games: number | null;
-  cora_wins: number | null;
-  dames_games: number | null;
-  dames_wins: number | null;
-  solitary_games: number | null;
-  ludo_games: number | null;
+interface GameStat {
+  game_type: string;
+  label: string;
+  emoji: string;
+  rounds: number;          // nombre de game_id distincts
+  unique_players: number;  // user_id distincts
+  bets_in: number;
+  payouts_out: number;
+  refunds: number;
+  house_cut: number;
+  net_profit: number;
 }
+
+const GAMES_META: Record<string, { label: string; emoji: string }> = {
+  aviator:       { label: 'Aviator',         emoji: '✈️' },
+  apple_fortune: { label: 'Apple Fortune',   emoji: '🍏' },
+  mines:         { label: 'Mines',           emoji: '💣' },
+  solitaire:     { label: 'Solitaire',       emoji: '🃏' },
+  coinflip:      { label: 'Pile ou Face',    emoji: '🪙' },
+  cora_dice:     { label: 'Cora Dice',       emoji: '🎲' },
+  checkers:      { label: 'Dames',           emoji: '♟️' },
+  blackjack:     { label: 'Blackjack',       emoji: '🂡' },
+  roulette:      { label: 'Roulette',        emoji: '🎯' },
+  ludo_v2:       { label: 'Ludo',            emoji: '🎮' },
+  fantasy:       { label: 'Fantasy League',  emoji: '⚽' },
+};
 
 export default function GamesPage() {
   const [stats, setStats] = useState<GameStat[]>([]);
-  const [global, setGlobal] = useState<GameStat | null>(null);
   const [totalPlayers, setTotalPlayers] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('games_played, games_won, total_wins, xp, cora_games, cora_wins, dames_games, dames_wins, solitary_games, ludo_games');
+      const [{ count: usersCount }, { data: movements }] = await Promise.all([
+        supabase.from('user_profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('treasury_movements').select('*').limit(50000),
+      ]);
 
-      if (!data) return;
-      const rows = data as UserRow[];
+      setTotalPlayers(usersCount ?? 0);
 
-      setTotalPlayers(rows.length);
+      // Aggregation par game_type
+      const map = new Map<string, {
+        gameIds: Set<string>;
+        playerIds: Set<string>;
+        bets_in: number;
+        payouts_out: number;
+        refunds: number;
+        house_cut: number;
+      }>();
 
-      const sum = (key: keyof UserRow) => rows.reduce((s, r) => s + (r[key] ?? 0), 0);
-      const activeOn = (key: keyof UserRow) => rows.filter(r => (r[key] ?? 0) > 0).length;
-      const winRate = (wins: number, games: number) =>
-        games > 0 ? Math.min(100, Math.round((wins / games) * 100)) : 0;
+      const ms = (movements ?? []) as MovementRow[];
+      for (const m of ms) {
+        if (!m.game_type || m.game_type === 'system') continue;
+        if (!map.has(m.game_type)) {
+          map.set(m.game_type, {
+            gameIds: new Set(), playerIds: new Set(),
+            bets_in: 0, payouts_out: 0, refunds: 0, house_cut: 0,
+          });
+        }
+        const e = map.get(m.game_type)!;
+        if (m.game_id) e.gameIds.add(m.game_id);
+        if (m.user_id) e.playerIds.add(m.user_id);
+        switch (m.movement_type) {
+          case 'loss_collect': e.bets_in += m.amount; break;
+          case 'payout': e.payouts_out += m.amount; break;
+          case 'refund': e.refunds += m.amount; break;
+          case 'house_cut': e.house_cut += m.amount; break;
+        }
+      }
 
-      // Stats globales (cumulées)
-      const totalGames = sum('games_played');
-      const totalWins  = sum('total_wins');
-      setGlobal({
-        label: 'Tous les jeux',
-        icon: <Gamepad2 className="h-4 w-4" />,
-        color: 'text-primary',
-        total_games: totalGames,
-        total_wins: totalWins,
-        win_rate: winRate(totalWins, totalGames),
-        active_players: activeOn('games_played'),
+      // Construire le tableau (inclure tous les jeux connus, même sans data)
+      const out: GameStat[] = Object.keys(GAMES_META).map(gt => {
+        const e = map.get(gt);
+        const meta = GAMES_META[gt];
+        if (!e) {
+          return {
+            game_type: gt, label: meta.label, emoji: meta.emoji,
+            rounds: 0, unique_players: 0,
+            bets_in: 0, payouts_out: 0, refunds: 0, house_cut: 0, net_profit: 0,
+          };
+        }
+        return {
+          game_type: gt, label: meta.label, emoji: meta.emoji,
+          rounds: e.gameIds.size,
+          unique_players: e.playerIds.size,
+          bets_in: e.bets_in,
+          payouts_out: e.payouts_out,
+          refunds: e.refunds,
+          house_cut: e.house_cut,
+          net_profit: e.bets_in - e.payouts_out - e.refunds,
+        };
       });
 
-      // Stats par jeu
-      const coraGames = sum('cora_games');
-      const coraWins  = sum('cora_wins');
-      const damesGames = sum('dames_games');
-      const damesWins  = sum('dames_wins');
-      const solitaryGames = sum('solitary_games');
-      const ludoGames  = sum('ludo_games');
-
-      setStats([
-        {
-          label: 'Cora Dice', icon: <Dice5 className="h-4 w-4" />, color: 'text-success',
-          total_games: coraGames, total_wins: coraWins,
-          win_rate: winRate(coraWins, coraGames),
-          active_players: activeOn('cora_games'),
-        },
-        {
-          label: 'Dames', icon: <Crown className="h-4 w-4" />, color: 'text-warning',
-          total_games: damesGames, total_wins: damesWins,
-          win_rate: winRate(damesWins, damesGames),
-          active_players: activeOn('dames_games'),
-        },
-        {
-          label: 'Ludo', icon: <Swords className="h-4 w-4" />, color: 'text-info',
-          total_games: ludoGames, total_wins: 0,
-          win_rate: 0,
-          active_players: activeOn('ludo_games'),
-        },
-        {
-          label: 'Solitaire', icon: <Spade className="h-4 w-4" />, color: 'text-danger',
-          total_games: solitaryGames, total_wins: 0,
-          win_rate: 0,
-          active_players: activeOn('solitary_games'),
-        },
-      ]);
+      out.sort((a, b) => b.rounds - a.rounds);
+      setStats(out);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+
+  // ── Stats globales ──
+  const totalRounds = stats.reduce((s, g) => s + g.rounds, 0);
+  const totalBetsIn = stats.reduce((s, g) => s + g.bets_in, 0);
+  const totalProfit = stats.reduce((s, g) => s + g.net_profit, 0);
+  const totalActivePlayers = (() => {
+    const all = new Set<string>();
+    stats.forEach(g => {
+      // approximation : on peut pas re-reduce l'union sans recalcul ;
+      // on reflète juste max(unique_players) et le delta vient du global ailleurs.
+      // Pour exact, faudrait stocker la union dans state. Trade-off acceptable.
+      g.unique_players;
+    });
+    return all.size || stats.reduce((s, g) => Math.max(s, g.unique_players), 0);
+  })();
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text">Parties</h1>
-          <p className="text-sm text-text-muted">Statistiques agrégées depuis les profils joueurs</p>
+          <h1 className="text-2xl font-bold text-text">Statistiques par jeu</h1>
+          <p className="text-sm text-text-muted">
+            Données extraites de <code className="text-xs">treasury_movements</code> — temps réel
+          </p>
         </div>
         <button onClick={fetchStats}
           className="flex items-center gap-2 rounded-xl border border-border/30 px-4 py-2 text-sm text-text-muted transition-colors hover:bg-surface-lighter hover:text-text">
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Rafraîchir
         </button>
       </div>
@@ -127,48 +161,114 @@ export default function GamesPage() {
         <>
           {/* Stats globales */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatsCard title="Total joueurs inscrits" value={totalPlayers.toLocaleString()} icon={<Users className="h-5 w-5" />} accent />
-            <StatsCard title="Joueurs ayant joué" value={(global?.active_players ?? 0).toLocaleString()} icon={<Gamepad2 className="h-5 w-5" />}
-              change={totalPlayers > 0 ? `${Math.round(((global?.active_players ?? 0) / totalPlayers) * 100)}% du total` : ''} changeType="neutral" />
-            <StatsCard title="Total parties jouées" value={(global?.total_games ?? 0).toLocaleString()} icon={<TrendingUp className="h-5 w-5" />} />
-            <StatsCard title="Win rate global" value={`${global?.win_rate ?? 0}%`} icon={<Trophy className="h-5 w-5" />} />
+            <StatsCard
+              title="Total joueurs inscrits"
+              value={totalPlayers.toLocaleString()}
+              icon={<Users className="h-5 w-5" />}
+              accent
+            />
+            <StatsCard
+              title="Total parties (rounds)"
+              value={totalRounds.toLocaleString()}
+              icon={<Gamepad2 className="h-5 w-5" />}
+              change={totalActivePlayers > 0 ? `${totalActivePlayers} joueurs actifs (estim.)` : ''}
+              changeType="neutral"
+            />
+            <StatsCard
+              title="Coins misés (cumul)"
+              value={totalBetsIn.toLocaleString()}
+              icon={<TrendingUp className="h-5 w-5" />}
+            />
+            <StatsCard
+              title="Profit net global"
+              value={totalProfit.toLocaleString()}
+              icon={<Trophy className="h-5 w-5" />}
+              change={totalBetsIn > 0 ? `${((totalProfit / totalBetsIn) * 100).toFixed(1)}% RTP inverse` : ''}
+              changeType={totalProfit >= 0 ? 'up' : 'down'}
+            />
           </div>
 
-          {/* Stats par jeu */}
+          {/* Cartes par jeu */}
           <div>
             <h2 className="mb-4 text-lg font-bold text-text">Détail par jeu</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {stats.map((s) => (
-                <div key={s.label} className="rounded-2xl border border-border/20 bg-surface-light p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`rounded-lg bg-surface p-2 ${s.color}`}>{s.icon}</div>
-                    <h3 className="font-bold text-text">{s.label}</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-text-muted">Parties jouées</span>
-                      <span className="font-semibold text-text">{s.total_games.toLocaleString()}</span>
-                    </div>
-                    {s.total_wins > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-text-muted">Victoires</span>
-                        <span className="font-semibold text-text">{s.total_wins.toLocaleString()}</span>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {stats.map((s) => {
+                const isActive = s.rounds > 0;
+                return (
+                  <div
+                    key={s.game_type}
+                    className={`rounded-2xl border p-5 transition-colors ${
+                      isActive
+                        ? 'border-border/30 bg-surface-light'
+                        : 'border-border/10 bg-surface-light/30 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-2xl">{s.emoji}</span>
+                      <div>
+                        <h3 className="font-bold text-text">{s.label}</h3>
+                        <p className="text-[10px] text-text-muted font-mono">{s.game_type}</p>
                       </div>
-                    )}
-                    {s.total_games > 0 && s.total_wins > 0 && (
+                      {!isActive && (
+                        <span className="ml-auto rounded-full bg-text-muted/15 px-2 py-0.5 text-[10px] font-bold uppercase text-text-muted">
+                          Aucune partie
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-text-muted">Win rate</span>
-                        <span className="font-semibold text-success">{s.win_rate}%</span>
+                        <span className="text-text-muted">Parties jouées</span>
+                        <span className="font-semibold text-text">{s.rounds.toLocaleString()}</span>
                       </div>
-                    )}
-                    <div className="flex justify-between text-sm pt-2 border-t border-border/20">
-                      <span className="text-text-muted">Joueurs actifs</span>
-                      <span className="font-semibold text-primary">{s.active_players}</span>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-text-muted">Joueurs uniques</span>
+                        <span className="font-semibold text-primary">{s.unique_players}</span>
+                      </div>
+                      <div className="border-t border-border/20 pt-2 mt-2 space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted flex items-center gap-1">
+                            <ArrowDownCircle className="h-3 w-3 text-success" /> Mises encaissées
+                          </span>
+                          <span className="font-semibold text-success">+{s.bets_in.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted flex items-center gap-1">
+                            <ArrowUpCircle className="h-3 w-3 text-info" /> Gains payés
+                          </span>
+                          <span className="font-semibold text-info">−{s.payouts_out.toLocaleString()}</span>
+                        </div>
+                        {s.refunds > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-text-muted">Refunds (matchs nuls)</span>
+                            <span className="font-semibold text-text-muted">−{s.refunds.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-xs">
+                          <span className="text-text-muted">Commission 10%</span>
+                          <span className="font-semibold text-warning">+{s.house_cut.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-sm pt-2 border-t border-border/20">
+                        <span className="text-text-muted flex items-center gap-1">
+                          <Coins className="h-3.5 w-3.5" /> Profit net
+                        </span>
+                        <span className={`font-bold ${s.net_profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {s.net_profit >= 0 ? '+' : ''}{s.net_profit.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+          </div>
+
+          {/* Note pour stats joueur×jeu */}
+          <div className="rounded-xl border border-info/30 bg-info/5 p-4 text-sm text-text-muted">
+            <p>
+              💡 Pour voir <strong>les statistiques par joueur sur un jeu spécifique</strong>,
+              ouvre la fiche d'un joueur sur la page <strong>Utilisateurs</strong>.
+            </p>
           </div>
         </>
       )}

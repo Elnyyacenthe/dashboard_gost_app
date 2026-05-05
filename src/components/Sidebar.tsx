@@ -10,6 +10,7 @@ import {
   Dice5,
   MessageSquare,
   Vault,
+  Scale,
   AlertTriangle,
   X,
 } from 'lucide-react';
@@ -78,6 +79,7 @@ export default function Sidebar({ onSignOut, open = false, onClose }: SidebarPro
     { to: '/dashboard/analytics',  icon: BarChart3,       label: 'Statistiques',   badge: 0,                show: true },
     { to: '/dashboard/alerts',     icon: AlertTriangle,   label: 'Alertes',        badge: unresolvedAlerts, show: true },
     { to: '/dashboard/treasury',   icon: Vault,           label: 'Trésorerie',     badge: 0,                show: isSuperAdmin },
+    { to: '/dashboard/audit',      icon: Scale,           label: 'Comptabilité',   badge: 0,                show: isSuperAdmin },
     { to: '/dashboard/support',    icon: MessageSquare,   label: 'Service Client', badge: unreadSupport,    show: true },
     { to: '/dashboard/settings',   icon: Settings,        label: 'Paramètres',     badge: 0,                show: true },
   ].filter(i => i.show);

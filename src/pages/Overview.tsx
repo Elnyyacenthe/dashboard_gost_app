@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Coins, Trophy, Gamepad2, TrendingUp, Star } from 'lucide-react';
+import { Users, Coins, Trophy, Gamepad2, TrendingUp, Star, Activity } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement,
@@ -9,6 +9,29 @@ import { Line, Bar } from 'react-chartjs-2';
 import StatsCard from '../components/StatsCard';
 import { supabase } from '../lib/supabaseClient';
 import type { DashboardKPIs, UserProfile } from '../types';
+
+const GAMES_META: Record<string, { label: string; emoji: string; color: string }> = {
+  aviator:       { label: 'Aviator',       emoji: '✈️', color: '#ef4444' },
+  apple_fortune: { label: 'Apple Fortune', emoji: '🍏', color: '#22c55e' },
+  mines:         { label: 'Mines',         emoji: '💣', color: '#a855f7' },
+  solitaire:     { label: 'Solitaire',     emoji: '🃏', color: '#f59e0b' },
+  coinflip:      { label: 'Pile/Face',     emoji: '🪙', color: '#eab308' },
+  cora_dice:     { label: 'Cora Dice',     emoji: '🎲', color: '#06b6d4' },
+  checkers:      { label: 'Dames',         emoji: '♟️', color: '#64748b' },
+  blackjack:     { label: 'Blackjack',     emoji: '🂡', color: '#dc2626' },
+  roulette:      { label: 'Roulette',      emoji: '🎯', color: '#16a34a' },
+  ludo_v2:       { label: 'Ludo',          emoji: '🎮', color: '#3b82f6' },
+  fantasy:       { label: 'Fantasy',       emoji: '⚽', color: '#10b981' },
+};
+
+interface MovementRow {
+  game_type: string;
+  user_id: string | null;
+  movement_type: string;
+  amount: number;
+  game_id: string | null;
+  created_at: string;
+}
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
 
@@ -39,19 +62,30 @@ const RANK_TEXT: Record<string, string> = {
   Platinum: 'text-cyan-400', Diamond: 'text-blue-500', Legend: 'text-orange-400',
 };
 
+interface GameRoundStat {
+  game_type: string;
+  label: string;
+  color: string;
+  rounds: number;
+  bets_in: number;
+}
+
 export default function Overview() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [topPlayers, setTopPlayers] = useState<UserProfile[]>([]);
   const [rankDist, setRankDist] = useState<Record<string, number>>({});
   const [coinsBuckets, setCoinsBuckets] = useState<number[]>([0, 0, 0, 0]);
+  const [gameStats, setGameStats] = useState<GameRoundStat[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: players } = await supabase
-          .from('user_profiles')
-          .select('id, coins, xp, rank, total_wins, games_played, last_seen');
+        const [{ data: players }, { data: top }, { data: movements }] = await Promise.all([
+          supabase.from('user_profiles').select('id, coins, xp, rank, total_wins, games_played, last_seen'),
+          supabase.from('user_profiles').select('*').order('xp', { ascending: false }).limit(5),
+          supabase.from('treasury_movements').select('*').limit(10000),
+        ]);
 
         if (!players) return;
 
@@ -78,13 +112,27 @@ export default function Overview() {
         setKpis({ total_players: players.length, active_players_7d: active7d, total_coins: totalCoins, top_rank: topRank, total_games_played: totalGames, total_wins: totalWins });
         setRankDist(ranks);
         setCoinsBuckets(buckets);
-
-        const { data: top } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .order('xp', { ascending: false })
-          .limit(5);
         setTopPlayers((top ?? []) as UserProfile[]);
+
+        // Stats par jeu depuis treasury_movements
+        const gameMap = new Map<string, { ids: Set<string>; bets: number }>();
+        for (const m of (movements ?? []) as MovementRow[]) {
+          if (!m.game_type || m.game_type === 'system') continue;
+          if (!gameMap.has(m.game_type)) {
+            gameMap.set(m.game_type, { ids: new Set(), bets: 0 });
+          }
+          const e = gameMap.get(m.game_type)!;
+          if (m.game_id) e.ids.add(m.game_id);
+          if (m.movement_type === 'loss_collect') e.bets += m.amount;
+        }
+        const gs: GameRoundStat[] = Array.from(gameMap.entries()).map(([gt, v]) => ({
+          game_type: gt,
+          label: GAMES_META[gt]?.label ?? gt,
+          color: GAMES_META[gt]?.color ?? '#94a3b8',
+          rounds: v.ids.size,
+          bets_in: v.bets,
+        })).sort((a, b) => b.rounds - a.rounds);
+        setGameStats(gs);
       } catch (e) {
         console.error(e);
       } finally {
@@ -160,6 +208,35 @@ export default function Overview() {
           </div>
         </div>
       </div>
+
+      {/* ACTIVITÉ PAR JEU */}
+      {gameStats.length > 0 && (
+        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-text">Activité par jeu</h3>
+            <span className="ml-auto text-xs text-text-muted">{gameStats.length} jeux actifs</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {gameStats.map(g => {
+              const meta = GAMES_META[g.game_type];
+              return (
+                <div key={g.game_type}
+                  className="flex items-center gap-3 rounded-xl border border-border/20 bg-surface p-3"
+                  style={{ borderLeftWidth: 3, borderLeftColor: g.color }}>
+                  <span className="text-2xl">{meta?.emoji ?? '🎮'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-text truncate">{g.label}</p>
+                    <p className="text-xs text-text-muted">
+                      {g.rounds} parties • {g.bets_in.toLocaleString()} coins misés
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
         <h3 className="mb-4 text-lg font-semibold text-text">Top 5 joueurs par XP</h3>
