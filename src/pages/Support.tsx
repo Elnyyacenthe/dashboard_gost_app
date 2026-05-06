@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   MessageSquare, Send, X, CheckCheck, Clock, AlertCircle,
   Search, RefreshCw, Tag, User, Inbox, ChevronRight, Loader2,
+  ExternalLink, Coins,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -59,6 +61,7 @@ export default function SupportPage() {
   const [sending, setSending]           = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [search, setSearch]             = useState('');
+  const [showRefund, setShowRefund]     = useState(false);
 
   const bottomRef  = useRef<HTMLDivElement>(null);
   const realtimeSub = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -317,19 +320,34 @@ export default function SupportPage() {
                 <StatusBadge status={selectedTicket.status} />
                 <CatBadge category={selectedTicket.category} />
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <User className="h-3 w-3 text-text-muted" />
-                <p className="text-xs text-text-muted">
-                  {selectedTicket.username} · créé le{' '}
-                  {format(new Date(selectedTicket.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
-                </p>
+                <Link
+                  to={`/dashboard/users/${selectedTicket.user_id}`}
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                  title="Ouvrir la fiche 360 du joueur"
+                >
+                  {selectedTicket.username} <ExternalLink className="h-2.5 w-2.5" />
+                </Link>
+                <span className="text-xs text-text-muted">
+                  · créé le {format(new Date(selectedTicket.created_at), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                </span>
               </div>
             </div>
 
             {/* Boutons statut */}
             <div className="flex items-center gap-2 shrink-0 ml-4">
+              <button
+                type="button"
+                onClick={() => setShowRefund(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-warning/30 bg-warning/5 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/15 transition-colors"
+                title="Émettre un remboursement"
+              >
+                <Coins className="h-3 w-3" /> Refund
+              </button>
               {selectedTicket.status !== 'closed' && (
                 <button
+                  type="button"
                   onClick={() => changeStatus(selectedTicket.id, 'closed')}
                   className="flex items-center gap-1.5 rounded-xl border border-border/30 px-3 py-1.5 text-xs font-medium text-text-muted hover:bg-surface-lighter transition-colors"
                 >
@@ -338,6 +356,7 @@ export default function SupportPage() {
               )}
               {selectedTicket.status === 'closed' && (
                 <button
+                  type="button"
                   onClick={() => changeStatus(selectedTicket.id, 'open')}
                   className="flex items-center gap-1.5 rounded-xl border border-border/30 px-3 py-1.5 text-xs font-medium text-info hover:bg-info/10 transition-colors"
                 >
@@ -430,6 +449,131 @@ export default function SupportPage() {
           </div>
         </div>
       )}
+
+      {showRefund && selectedTicket && (
+        <RefundModal
+          ticket={selectedTicket}
+          onClose={() => setShowRefund(false)}
+          onSuccess={() => { setShowRefund(false); fetchTickets(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Refund modal ───────────────────────────────────────────────────────
+function RefundModal({ ticket, onClose, onSuccess }: {
+  ticket: SupportTicket;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [gameId, setGameId] = useState('');
+  const [reason, setReason] = useState(`Refund suite ticket: ${ticket.subject}`);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setError('');
+    const n = parseInt(amount, 10);
+    if (isNaN(n) || n <= 0) { setError('Montant invalide'); return; }
+    if (reason.trim().length < 3) { setError('Raison obligatoire (3 caractères min)'); return; }
+    setLoading(true);
+    try {
+      let result;
+      if (gameId.trim()) {
+        result = await supabase.rpc('admin_refund_game', {
+          p_game_id: gameId.trim(),
+          p_user_id: ticket.user_id,
+          p_amount: n,
+          p_reason: reason.trim(),
+        });
+      } else {
+        result = await supabase.rpc('admin_adjust_user_coins', {
+          p_user_id: ticket.user_id,
+          p_delta: n,
+          p_reason: `[Ticket ${ticket.id.slice(0, 8)}] ${reason.trim()}`,
+        });
+      }
+      if (result.error) throw result.error;
+      if (result.data?.success === false) throw new Error(result.data.error);
+
+      // Marquer le ticket avec refund_status
+      await supabase.from('support_tickets').update({
+        refund_status: 'paid',
+        refund_amount: n,
+        related_game_id: gameId.trim() || null,
+        financial_impact: n,
+      }).eq('id', ticket.id);
+
+      onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-border/30 bg-surface-light shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border/20 p-5">
+          <div>
+            <h3 className="font-bold text-text">Émettre un remboursement</h3>
+            <p className="mt-0.5 text-xs text-text-muted">{ticket.username}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fermer"
+            className="rounded-lg p-1.5 text-text-muted hover:bg-surface-lighter">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-text-muted">Montant (coins)</label>
+            <input type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-xl border border-border/30 bg-surface px-4 py-2.5 text-lg font-bold text-text focus:outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-text-muted">
+              Game ID concerné (optionnel)
+            </label>
+            <input type="text" value={gameId} onChange={e => setGameId(e.target.value)}
+              placeholder="UUID partie litigieuse (déclenche replay + idempotency)"
+              className="w-full rounded-xl border border-border/30 bg-surface px-4 py-2.5 text-xs font-mono text-text focus:outline-none focus:border-primary" />
+            <p className="mt-1 text-[11px] text-text-muted">
+              Si renseigné, prévient un double-refund pour la même partie.
+            </p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-text-muted">
+              Raison <span className="text-danger">*</span>
+            </label>
+            <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
+              placeholder="Décrivez la raison du remboursement..."
+              aria-label="Raison du remboursement"
+              className="w-full resize-none rounded-xl border border-border/30 bg-surface px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" />
+            <p className="mt-1 text-[11px] text-text-muted">Tracée dans admin_actions_log.</p>
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl bg-danger/10 border border-danger/20 p-3 text-sm text-danger">
+              <AlertCircle className="h-4 w-4" /> {error}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose}
+              className="flex-1 rounded-xl border border-border/30 py-2.5 text-sm font-semibold text-text-muted hover:bg-surface-lighter">
+              Annuler
+            </button>
+            <button type="button" onClick={submit} disabled={loading}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-warning py-2.5 text-sm font-semibold text-white hover:bg-warning/80 disabled:opacity-50">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
+              Confirmer refund
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

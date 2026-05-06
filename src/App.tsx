@@ -10,6 +10,8 @@ import SupportPage from './pages/Support';
 import TreasuryPage from './pages/Treasury';
 import AuditPage from './pages/Audit';
 import AlertsPage from './pages/Alerts';
+import UserDetail from './pages/UserDetail';
+import GameReplay from './pages/GameReplay';
 
 export default function App() {
   return (
@@ -20,7 +22,9 @@ export default function App() {
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<Overview />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="users/:id" element={<UserDetail />} />
           <Route path="games" element={<GamesPage />} />
+          <Route path="games/:gameId/replay" element={<GameReplay />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="support" element={<SupportPage />} />
           <Route path="treasury" element={<TreasuryPage />} />

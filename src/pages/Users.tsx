@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert, ShieldCheck, RotateCcw, Eye,
   UserPlus, Crown, Shield, User, X, Check, Loader2, Wallet
@@ -61,14 +62,34 @@ function UserDetailModal({ user, onClose, onRefresh }: {
   };
 
   const handleToggleBlock = async () => {
-    await supabase.from('user_profiles').update({ is_blocked: !user.is_blocked }).eq('id', user.id);
+    const reason = prompt('Raison (obligatoire, traçée dans audit log) :');
+    if (!reason || reason.trim().length < 3) return;
+    const { data, error } = await supabase.rpc('admin_set_user_blocked', {
+      p_user_id: user.id,
+      p_blocked: !user.is_blocked,
+      p_reason: reason.trim(),
+    });
+    if (error || data?.success === false) {
+      alert('Erreur: ' + (error?.message ?? data?.error ?? 'inconnu'));
+      return;
+    }
     onRefresh(); onClose();
   };
 
   const handleResetCoins = async () => {
     if (!canEditPlayerCoins) return;
-    if (!confirm('Remettre les coins à 0 ?')) return;
-    await supabase.from('user_profiles').update({ coins: 0 }).eq('id', user.id);
+    if (user.coins === 0) { onClose(); return; }
+    const reason = prompt(`Reset des ${user.coins} coins à 0 - Raison (obligatoire) :`);
+    if (!reason || reason.trim().length < 3) return;
+    const { data, error } = await supabase.rpc('admin_adjust_user_coins', {
+      p_user_id: user.id,
+      p_delta: -user.coins,
+      p_reason: reason.trim(),
+    });
+    if (error || data?.success === false) {
+      alert('Erreur: ' + (error?.message ?? data?.error ?? 'inconnu'));
+      return;
+    }
     onRefresh(); onClose();
   };
 
@@ -76,11 +97,22 @@ function UserDetailModal({ user, onClose, onRefresh }: {
     if (!canEditPlayerCoins) return;
     const val = parseInt(coinInput, 10);
     if (isNaN(val) || val < 0) { setCoinError('Montant invalide (nombre entier ≥ 0 requis)'); return; }
+    const delta = val - user.coins;
+    if (delta === 0) { setCoinError('Aucune modification'); return; }
+    const reason = prompt(`Ajustement de ${delta > 0 ? '+' : ''}${delta} coins - Raison (obligatoire) :`);
+    if (!reason || reason.trim().length < 3) { setCoinError('Raison obligatoire'); return; }
     setCoinError('');
     setSavingCoins(true);
-    const { error } = await supabase.from('user_profiles').update({ coins: val }).eq('id', user.id);
+    const { data, error } = await supabase.rpc('admin_adjust_user_coins', {
+      p_user_id: user.id,
+      p_delta: delta,
+      p_reason: reason.trim(),
+    });
     setSavingCoins(false);
-    if (error) { setCoinError('Erreur lors de la mise à jour.'); return; }
+    if (error || data?.success === false) {
+      setCoinError('Erreur: ' + (error?.message ?? data?.error ?? 'inconnu'));
+      return;
+    }
     setCoinSuccess(true);
     onRefresh();
     setTimeout(() => { setCoinSuccess(false); onClose(); }, 1200);
@@ -330,6 +362,7 @@ function InviteModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: (
 
 // Page principale
 export default function UsersPage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('players');
   const [players, setPlayers] = useState<Profile[]>([]);
   const [team, setTeam] = useState<Profile[]>([]);
@@ -384,8 +417,8 @@ export default function UsersPage() {
     },
     { key: 'actions', header: '',
       render: (u: Profile) => (
-        <button onClick={e => { e.stopPropagation(); setSelectedUser(u); }}
-          aria-label={`Voir le profil de ${(u as Profile).username}`}
+        <button onClick={e => { e.stopPropagation(); navigate(`/dashboard/users/${u.id}`); }}
+          aria-label={`Voir le profil 360 de ${(u as Profile).username}`}
           className="rounded-lg p-1.5 text-text-muted border border-border/30 hover:bg-surface-lighter hover:text-text transition-colors">
           <Eye className="h-3.5 w-3.5" />
         </button>
@@ -509,7 +542,7 @@ export default function UsersPage() {
             data={players as unknown as Record<string, unknown>[]}
             columns={playerColumns as never}
             searchPlaceholder="Rechercher un joueur..."
-            onRowClick={u => setSelectedUser(u as unknown as Profile)}
+            onRowClick={u => navigate(`/dashboard/users/${(u as unknown as Profile).id}`)}
           />
         )
       ) : (
