@@ -73,19 +73,34 @@ export default function ReplayPage() {
   const [recentGames, setRecentGames] = useState<{ id: string; created_at: string; status: string; winner_id?: string | null }[]>([]);
 
   const loadRecentGames = useCallback(async (gt: GameType) => {
-    const table = gt === 'ludo_v2' ? 'ludo_v2_games' : 'cora_games';
-    const { data } = await supabase
-      .from(table)
-      .select('id, created_at, status' + (gt === 'ludo_v2' ? ', winner_id' : ', winner_ids'))
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (data) {
-      setRecentGames((data as Array<{ id: string; created_at: string; status: string; winner_id?: string; winner_ids?: string[] }>).map(g => ({
-        id: g.id,
-        created_at: g.created_at,
-        status: g.status,
-        winner_id: g.winner_id ?? (g.winner_ids?.[0] ?? null),
-      })));
+    if (gt === 'ludo_v2') {
+      const { data } = await supabase
+        .from('ludo_v2_games')
+        .select('id, created_at, status, winner_id')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (data) {
+        setRecentGames((data as Array<{ id: string; created_at: string; status: string; winner_id: string | null }>).map(g => ({
+          id: g.id,
+          created_at: g.created_at,
+          status: g.status,
+          winner_id: g.winner_id,
+        })));
+      }
+    } else {
+      const { data } = await supabase
+        .from('cora_games')
+        .select('id, created_at, status, winner_ids')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (data) {
+        setRecentGames((data as Array<{ id: string; created_at: string; status: string; winner_ids: string[] | null }>).map(g => ({
+          id: g.id,
+          created_at: g.created_at,
+          status: g.status,
+          winner_id: g.winner_ids?.[0] ?? null,
+        })));
+      }
     }
   }, []);
 
