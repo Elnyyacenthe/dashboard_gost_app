@@ -204,25 +204,25 @@ export default function SupportPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="card-plugbet flex h-[calc(100vh-7rem)] gap-0 overflow-hidden animate-fade-in">
+    <div className="flex h-[calc(100vh-4rem)] gap-0 overflow-hidden rounded-2xl border border-border/20 bg-surface-light animate-fade-in">
 
       {/* ── Panneau gauche : liste tickets ── */}
-      <div className="flex w-80 shrink-0 flex-col border-r border-border/40">
+      <div className="flex w-80 shrink-0 flex-col border-r border-border/20">
 
         {/* Header gauche */}
-        <div className="border-b border-border/40 p-4 space-y-3">
+        <div className="border-b border-border/20 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" strokeWidth={2.2} />
-              <h2 className="hero-number text-base text-text">Support</h2>
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <h2 className="font-bold text-text">Service Client</h2>
               {unreadCount > 0 && (
-                <span className="badge-danger flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-extrabold text-white">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </div>
-            <button type="button" onClick={fetchTickets} title="Rafraîchir" aria-label="Rafraîchir"
-              className="rounded-lg p-1.5 text-text-secondary hover:bg-surface-lighter hover:text-text transition-colors">
+            <button onClick={fetchTickets} title="Rafraîchir"
+              className="rounded-lg p-1.5 text-text-muted hover:bg-surface-lighter transition-colors">
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>

@@ -232,33 +232,27 @@ export default function TreasuryPage() {
     <div className="space-y-6 animate-fade-in">
       {/* RECONCILIATION BANNER */}
       {reconcile && (
-        <div className={`card-plugbet relative overflow-hidden p-4 ${
-          reconcile.consistent ? 'card-glow-green' : 'card-glow-red pulse-danger'
+        <div className={`rounded-2xl border p-4 ${
+          reconcile.consistent
+            ? 'border-success/30 bg-success/5'
+            : 'border-danger/40 bg-danger/10'
         }`}>
-          <span className={`absolute left-0 top-0 h-full w-[3px] ${
-            reconcile.consistent ? 'bg-primary' : 'bg-danger'
-          }`} />
           <div className="flex items-center gap-4 flex-wrap">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-              reconcile.consistent ? 'bg-primary/15 text-primary' : 'bg-danger/15 text-danger'
+            <div className={`rounded-lg p-2 ${
+              reconcile.consistent ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'
             }`}>
-              {reconcile.consistent ? <ShieldCheck className="h-5 w-5" strokeWidth={2.5} /> : <ShieldAlert className="h-5 w-5" strokeWidth={2.5} />}
+              {reconcile.consistent ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`text-[10px] font-bold uppercase tracking-wider ${
-                reconcile.consistent ? 'text-primary' : 'text-danger'
-              }`}>
-                {reconcile.consistent ? 'Système réconcilié' : 'Imbalance détecté'}
-              </p>
-              <p className={`hero-number text-lg ${reconcile.consistent ? 'text-text' : 'text-danger'}`}>
+              <p className={`font-bold ${reconcile.consistent ? 'text-success' : 'text-danger'}`}>
                 {reconcile.consistent
-                  ? 'Comptabilité conforme'
-                  : `Diff : ${reconcile.diff.toLocaleString()} coins`}
+                  ? '✅ Système réconcilié'
+                  : `🚨 IMBALANCE DÉTECTÉ — Diff : ${reconcile.diff.toLocaleString()} coins`}
               </p>
-              <p className="text-[11px] text-text-secondary mt-0.5">
-                Total système <strong className="text-text">{reconcile.total_in_system.toLocaleString()}</strong>
+              <p className="text-xs text-text-muted mt-1">
+                Total système : <strong className="text-text">{reconcile.total_in_system.toLocaleString()}</strong> coins
                 {' · '}
-                Dépôts cumulés <strong className="text-text">{reconcile.deposits_total.toLocaleString()}</strong>
+                Dépôts cumulés : <strong className="text-text">{reconcile.deposits_total.toLocaleString()}</strong>
                 {' · '}
                 Vérifié {formatRelativeTime(reconcile.checked_at)}
               </p>
@@ -266,58 +260,48 @@ export default function TreasuryPage() {
             <button
               onClick={runManualReconcile}
               disabled={reconciling}
-              className="flex items-center gap-2 rounded-xl border border-border/40 bg-surface/50 px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-text hover:border-primary/30 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-border/30 bg-surface px-3 py-2 text-xs font-semibold text-text-muted hover:text-text hover:bg-surface-lighter disabled:opacity-50"
             >
               {reconciling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Réconcilier
+              Forcer une réconciliation
             </button>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="flex items-end justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-warning">
-            Plugbet · Vault
-          </p>
-          <div className="mt-1 flex items-center gap-3 flex-wrap">
-            <Vault className="h-7 w-7 text-warning" strokeWidth={2} />
-            <h1 className="hero-number text-3xl text-text">Trésorerie</h1>
-            <span className="rounded-md bg-warning/15 border border-warning/30 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-warning">
+          <div className="flex items-center gap-2">
+            <Vault className="h-6 w-6 text-warning" />
+            <h1 className="text-2xl font-bold text-text">Trésorerie</h1>
+            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
               Super Admin
             </span>
           </div>
-          <p className="mt-2 text-sm text-text-secondary">
-            Caisse & profits — commissions 10% uniforme sur tous les jeux
+          <p className="mt-1 text-sm text-text-muted">
+            Caisse & profits — Commissions 10% uniforme sur tous les jeux
           </p>
         </div>
-        <button onClick={load}
-          className="flex items-center gap-2 rounded-xl border border-border/40 bg-surface-light/50 px-4 py-2 text-sm font-semibold text-text-secondary hover:border-primary/30 hover:text-text transition-colors">
+        <button onClick={load} className="flex items-center gap-2 rounded-lg border border-border/30 px-4 py-2 text-sm text-text-muted hover:bg-surface-lighter hover:text-text">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Actualiser
         </button>
       </div>
 
-      {/* WALLET ADMIN BAR */}
-      <div className="card-plugbet card-glow-green relative overflow-hidden p-5">
-        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative flex items-center gap-4 flex-wrap">
-          <div className="logo-gradient flex h-11 w-11 items-center justify-center rounded-xl">
-            <Wallet className="h-5 w-5 text-surface" strokeWidth={2.5} />
-          </div>
+      {/* WALLET ADMIN BAR (info + lien vers Freemopay mobile) */}
+      <div className="rounded-2xl border border-success/30 bg-gradient-to-br from-success/10 to-success/5 p-5">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="rounded-lg bg-success/20 p-2.5"><Wallet className="h-5 w-5 text-success" /></div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              Mon wallet personnel · Super admin
-            </p>
-            <p className="mt-1 text-xs text-text-secondary leading-relaxed">
-              Pont Mobile Money : pour <strong className="text-text">déposer</strong> du vrai argent, fais un dépôt Freemopay sur l'app mobile puis clique <strong className="text-text">Déposer</strong>.
-              Pour <strong className="text-text">retirer</strong>, clique <strong className="text-text">Retirer</strong> puis fais un retrait Freemopay sur le mobile.
+            <p className="text-sm font-medium text-success">Mon wallet personnel (super admin)</p>
+            <p className="text-xs text-text-muted">
+              Pont vers Mobile Money : pour <strong>déposer</strong> du vrai argent dans la caisse, fais d'abord un dépôt Freemopay sur l'app mobile,
+              puis clique <strong>Déposer</strong> ci-dessous. Pour <strong>retirer</strong> du vrai argent, clique <strong>Retirer</strong> puis fais un retrait Freemopay sur l'app mobile.
             </p>
           </div>
-          <p className="hero-number text-3xl text-text">
-            {adminWallet.toLocaleString()}
-            <span className="ml-2 text-sm font-semibold uppercase tracking-wider text-text-secondary">coins</span>
+          <p className="text-3xl font-black text-text">
+            {adminWallet.toLocaleString()} <span className="text-base text-text-muted">coins</span>
           </p>
         </div>
       </div>
@@ -325,75 +309,65 @@ export default function TreasuryPage() {
       {/* TWO MAIN TREASURY CARDS */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* CAISSE JEU */}
-        <div className="card-plugbet relative overflow-hidden p-6 transition-transform hover:-translate-y-0.5">
-          <span className="absolute left-0 top-0 h-full w-[3px] bg-info opacity-70" />
-          <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-info/10 blur-3xl" />
-          <div className="relative flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-info/15 text-info">
-                <Gamepad2 className="h-5 w-5" strokeWidth={2.5} />
-              </div>
+        <div className="rounded-2xl border border-info/30 bg-gradient-to-br from-info/15 to-info/5 p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-info/20 p-2"><Gamepad2 className="h-5 w-5 text-info" /></div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-info">Caisse du jeu</p>
-                <p className="text-xs text-text-secondary">Mises perdues — jeux solo</p>
+                <p className="text-sm font-medium text-info">Caisse du jeu</p>
+                <p className="text-xs text-text-muted">Mises perdues (jeux solo)</p>
               </div>
             </div>
           </div>
-          <p className="hero-number text-4xl text-text mb-4">
-            {(game?.balance ?? 0).toLocaleString()}
-            <span className="ml-2 text-sm font-semibold uppercase tracking-wider text-text-secondary">coins</span>
+          <p className="text-4xl font-black text-text mb-3">
+            {(game?.balance ?? 0).toLocaleString()} <span className="text-base text-text-muted">coins</span>
           </p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-lg border border-border/40 bg-surface/40 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Mises (cumul)</p>
-              <p className="display-number text-base text-primary mt-0.5">+{(game?.total_received ?? 0).toLocaleString()}</p>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="rounded-lg bg-surface/50 p-2.5">
+              <p className="text-text-muted">Mises perdues (cumul)</p>
+              <p className="font-bold text-success">+{(game?.total_received ?? 0).toLocaleString()}</p>
             </div>
-            <div className="rounded-lg border border-border/40 bg-surface/40 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Gains payés</p>
-              <p className="display-number text-base text-danger mt-0.5">−{(game?.total_paid_out ?? 0).toLocaleString()}</p>
+            <div className="rounded-lg bg-surface/50 p-2.5">
+              <p className="text-text-muted">Gains payés (cumul)</p>
+              <p className="font-bold text-danger">−{(game?.total_paid_out ?? 0).toLocaleString()}</p>
             </div>
           </div>
           <button
             onClick={() => setModal('to_admin')}
             disabled={!game || game.balance <= 0}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-info/30 bg-info/10 py-2.5 text-sm font-bold uppercase tracking-wider text-info hover:bg-info/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-info/15 border border-info/30 py-2.5 text-sm font-semibold text-info hover:bg-info/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ArrowRight className="h-4 w-4" />
-            Transférer vers admin
+            Transférer vers caisse admin
           </button>
         </div>
 
         {/* CAISSE SUPER ADMIN */}
-        <div className="card-plugbet card-glow-warning relative overflow-hidden p-6 transition-transform hover:-translate-y-0.5">
-          <span className="absolute left-0 top-0 h-full w-[3px] bg-warning opacity-70" />
-          <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-warning/10 blur-3xl" />
-          <div className="relative flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-warning/15 text-warning">
-                <Coins className="h-5 w-5" strokeWidth={2.5} />
-              </div>
+        <div className="rounded-2xl border border-warning/30 bg-gradient-to-br from-warning/15 to-warning/5 p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-warning/20 p-2"><Coins className="h-5 w-5 text-warning" /></div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-warning">Caisse super admin</p>
-                <p className="text-xs text-text-secondary">Profits — commissions multijoueur</p>
+                <p className="text-sm font-medium text-warning">Caisse super admin</p>
+                <p className="text-xs text-text-muted">Profits — Commissions multijoueur</p>
               </div>
             </div>
           </div>
-          <p className="hero-number text-4xl text-text mb-4">
-            {(admin?.balance ?? 0).toLocaleString()}
-            <span className="ml-2 text-sm font-semibold uppercase tracking-wider text-text-secondary">coins</span>
+          <p className="text-4xl font-black text-text mb-3">
+            {(admin?.balance ?? 0).toLocaleString()} <span className="text-base text-text-muted">coins</span>
           </p>
           <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="rounded-lg border border-border/40 bg-surface/40 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Encaissé</p>
-              <p className="display-number text-sm text-primary mt-0.5">+{(admin?.total_earned ?? 0).toLocaleString()}</p>
+            <div className="rounded-lg bg-surface/50 p-2.5">
+              <p className="text-text-muted">Encaissé</p>
+              <p className="font-bold text-success">+{(admin?.total_earned ?? 0).toLocaleString()}</p>
             </div>
-            <div className="rounded-lg border border-border/40 bg-surface/40 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Retiré</p>
-              <p className="display-number text-sm text-info mt-0.5">−{(admin?.total_withdrawn ?? 0).toLocaleString()}</p>
+            <div className="rounded-lg bg-surface/50 p-2.5">
+              <p className="text-text-muted">Retiré</p>
+              <p className="font-bold text-info">−{(admin?.total_withdrawn ?? 0).toLocaleString()}</p>
             </div>
-            <div className="rounded-lg border border-border/40 bg-surface/40 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">Déposé</p>
-              <p className="display-number text-sm text-text mt-0.5">+{(admin?.total_deposited ?? 0).toLocaleString()}</p>
+            <div className="rounded-lg bg-surface/50 p-2.5">
+              <p className="text-text-muted">Déposé</p>
+              <p className="font-bold text-text">+{(admin?.total_deposited ?? 0).toLocaleString()}</p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">

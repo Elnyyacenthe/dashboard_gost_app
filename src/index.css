@@ -1,44 +1,19 @@
 @import "tailwindcss";
 
-/* ============================================================
-   PLUGBET DASHBOARD — Charte alignée sur l'app mobile
-   Source: D:\gost_app\lib\theme\app_theme.dart
-   Identite : navy nuit profonde + accent NEON GREEN + multi-neon
-   ============================================================ */
-
 @theme {
-  /* === Primary : NEON GREEN (comme l'app mobile) === */
-  --color-primary: #00E676;
-  --color-primary-light: #33ED91;
-  --color-primary-dark: #00B85A;
-
-  /* === Surfaces : navy nuit profonde === */
-  --color-surface: #040810;
-  --color-surface-light: #0E1A2E;
-  --color-surface-lighter: #142035;
-  --color-surface-elevated: #182842;
-
-  /* === Bordures et dividers === */
-  --color-border: #1A2940;
-  --color-border-light: #243755;
-
-  /* === Texte === */
-  --color-text: #F0F2F5;
-  --color-text-secondary: #8E99A4;
-  --color-text-muted: #4A5568;
-
-  /* === Multi-neon (accent badges, charts, status) === */
-  --color-success: #00E676;
-  --color-danger: #FF1744;
-  --color-warning: #FFD600;
-  --color-info: #448AFF;
-  --color-purple: #E040FB;
-  --color-orange: #FF9100;
-
-  /* === Shadows neon === */
-  --shadow-neon-green: 0 0 24px rgba(0, 230, 118, 0.25);
-  --shadow-neon-blue: 0 0 24px rgba(68, 138, 255, 0.25);
-  --shadow-neon-red: 0 0 24px rgba(255, 23, 68, 0.25);
+  --color-primary: #f97316;
+  --color-primary-light: #fb923c;
+  --color-primary-dark: #ea580c;
+  --color-surface: #0f172a;
+  --color-surface-light: #1e293b;
+  --color-surface-lighter: #334155;
+  --color-border: #475569;
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-warning: #eab308;
+  --color-info: #3b82f6;
 }
 
 * {
@@ -46,74 +21,12 @@
   scrollbar-color: var(--color-surface-lighter) var(--color-surface);
 }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--color-surface); }
-::-webkit-scrollbar-thumb {
-  background: var(--color-surface-lighter);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--color-border-light); }
-
 body {
-  /* Gradient subtil identique a bgGradient de l'app mobile */
-  background:
-    linear-gradient(180deg, #040810 0%, #0B1726 50%, #091320 100%);
-  background-attachment: fixed;
+  background-color: var(--color-surface);
   color: var(--color-text);
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* === Typographie premium pour les hero numbers === */
-.hero-number {
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  font-feature-settings: 'tnum', 'lnum';
-}
-.display-number {
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  font-feature-settings: 'tnum', 'lnum';
-}
-
-/* === Card gradients (comme cardGradient mobile) === */
-.card-plugbet {
-  background: linear-gradient(135deg, #0E1A2E 0%, #142035 100%);
-  border: 1px solid rgba(26, 41, 64, 0.6);
-  border-radius: 16px;
-}
-
-.card-plugbet-elevated {
-  background: linear-gradient(135deg, #142035 0%, #182842 100%);
-  border: 1px solid rgba(36, 55, 85, 0.7);
-  border-radius: 16px;
-}
-
-/* Bordure neon subtile autour des cards "actives" */
-.card-glow-green {
-  box-shadow:
-    0 0 0 1px rgba(0, 230, 118, 0.25),
-    0 8px 32px -8px rgba(0, 230, 118, 0.15);
-}
-.card-glow-blue {
-  box-shadow:
-    0 0 0 1px rgba(68, 138, 255, 0.25),
-    0 8px 32px -8px rgba(68, 138, 255, 0.15);
-}
-.card-glow-red {
-  box-shadow:
-    0 0 0 1px rgba(255, 23, 68, 0.25),
-    0 8px 32px -8px rgba(255, 23, 68, 0.15);
-}
-.card-glow-warning {
-  box-shadow:
-    0 0 0 1px rgba(255, 214, 0, 0.25),
-    0 8px 32px -8px rgba(255, 214, 0, 0.15);
-}
-
-/* === Animations === */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -124,82 +37,10 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); }
-  50% { box-shadow: 0 0 24px 4px rgba(0, 230, 118, 0.15); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+  50% { box-shadow: 0 0 20px 4px rgba(249, 115, 22, 0.15); }
 }
+
 .pulse-glow {
-  animation: pulse-glow 2.5s infinite;
+  animation: pulse-glow 2s infinite;
 }
-
-/* Pulse rouge pour alertes critiques */
-@keyframes pulse-danger {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.5); }
-  50% { box-shadow: 0 0 28px 6px rgba(255, 23, 68, 0.2); }
-}
-.pulse-danger {
-  animation: pulse-danger 1.8s infinite;
-}
-
-/* Live dot animation */
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.2); }
-}
-.live-dot {
-  animation: live-pulse 1.5s ease-in-out infinite;
-}
-
-/* === Glow text utilities === */
-.glow-green {
-  text-shadow: 0 0 12px rgba(0, 230, 118, 0.45);
-}
-.glow-red {
-  text-shadow: 0 0 12px rgba(255, 23, 68, 0.45);
-}
-
-/* === Gradient backgrounds for hero areas === */
-.bg-gradient-hero {
-  background:
-    radial-gradient(ellipse at top right, rgba(0, 230, 118, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom left, rgba(68, 138, 255, 0.06) 0%, transparent 50%),
-    linear-gradient(135deg, #0E1A2E 0%, #142035 100%);
-}
-
-.bg-gradient-vault {
-  background:
-    radial-gradient(ellipse at top right, rgba(255, 214, 0, 0.10) 0%, transparent 50%),
-    linear-gradient(135deg, #0E1A2E 0%, #142035 100%);
-}
-
-.bg-gradient-danger {
-  background:
-    radial-gradient(ellipse at top right, rgba(255, 23, 68, 0.10) 0%, transparent 50%),
-    linear-gradient(135deg, #0E1A2E 0%, #142035 100%);
-}
-
-/* === Inputs alignement charte === */
-input, textarea, select {
-  font-feature-settings: 'tnum';
-}
-
-/* === Sidebar Plugbet === */
-.sidebar-bg {
-  background: linear-gradient(180deg, #0E1A2E 0%, #091320 100%);
-}
-.logo-gradient {
-  background: linear-gradient(135deg, #00E676 0%, #00B85A 100%);
-  box-shadow: 0 0 18px rgba(0, 230, 118, 0.4);
-}
-.active-indicator {
-  background: #00E676;
-  box-shadow: 0 0 12px rgba(0, 230, 118, 0.6);
-}
-.badge-danger {
-  background: #FF1744;
-  box-shadow: 0 0 12px rgba(255, 23, 68, 0.5);
-}
-
-/* Halo decoration for hero banners */
-.halo-green { background: #00E676; }
-.halo-red   { background: #FF1744; }
-.halo-warning { background: #FFD600; }

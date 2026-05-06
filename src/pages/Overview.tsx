@@ -167,85 +167,33 @@ export default function Overview() {
     datasets: [{
       label: 'Joueurs',
       data: coinsBuckets,
-      borderColor: '#00E676',
-      backgroundColor: 'rgba(0, 230, 118, 0.12)',
-      borderWidth: 2.5, fill: true, tension: 0.4, pointRadius: 5,
-      pointBackgroundColor: '#00E676',
-      pointBorderColor: '#040810',
-      pointBorderWidth: 2,
+      borderColor: '#f97316',
+      backgroundColor: 'rgba(249,115,22,0.1)',
+      borderWidth: 2, fill: true, tension: 0.4, pointRadius: 5, pointBackgroundColor: '#f97316',
     }],
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Hero header */}
-      <div className="flex items-end justify-between flex-wrap gap-3">
-        <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-primary">
-            Plugbet · Live data
-          </p>
-          <h1 className="hero-number text-3xl text-text">Overview</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Données réelles, en temps réel — joueurs, coins, parties, rangs.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5">
-          <span className="live-dot h-2 w-2 rounded-full bg-primary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary">Live</span>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-text">Overview</h1>
+        <p className="text-sm text-text-muted">Données réelles de ton application</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatsCard
-          title="Total joueurs inscrits"
-          value={(kpis?.total_players ?? 0).toLocaleString()}
-          icon={<Users className="h-5 w-5" strokeWidth={2.2} />}
-          variant="green" accent
-        />
-        <StatsCard
-          title="Actifs (7 derniers jours)"
-          value={(kpis?.active_players_7d ?? 0).toLocaleString()}
-          icon={<TrendingUp className="h-5 w-5" strokeWidth={2.2} />}
-          change={kpis ? `${Math.round((kpis.active_players_7d / Math.max(kpis.total_players, 1)) * 100)}% du total` : ''}
-          changeType="up"
-          variant="blue"
-        />
-        <StatsCard
-          title="Coins en circulation"
-          value={(kpis?.total_coins ?? 0).toLocaleString()}
-          icon={<Coins className="h-5 w-5" strokeWidth={2.2} />}
-          variant="warning"
-        />
-        <StatsCard
-          title="Parties jouées (total)"
-          value={(kpis?.total_games_played ?? 0).toLocaleString()}
-          icon={<Gamepad2 className="h-5 w-5" strokeWidth={2.2} />}
-          variant="purple"
-        />
-        <StatsCard
-          title="Total victoires"
-          value={(kpis?.total_wins ?? 0).toLocaleString()}
-          icon={<Trophy className="h-5 w-5" strokeWidth={2.2} />}
-          change={kpis?.total_games_played ? `${Math.round((kpis.total_wins / Math.max(kpis.total_games_played, 1)) * 100)}% win rate` : '—'}
-          changeType="up"
-          variant="orange"
-        />
-        <StatsCard
-          title="Rang le plus élevé"
-          value={kpis?.top_rank ?? 'N/A'}
-          icon={<Star className="h-5 w-5" strokeWidth={2.2} />}
-          variant="green" accent
-        />
+        <StatsCard title="Total joueurs inscrits" value={(kpis?.total_players ?? 0).toLocaleString()} icon={<Users className="h-5 w-5" />} accent />
+        <StatsCard title="Actifs (7 derniers jours)" value={(kpis?.active_players_7d ?? 0).toLocaleString()} icon={<TrendingUp className="h-5 w-5" />}
+          change={kpis ? `${Math.round((kpis.active_players_7d / Math.max(kpis.total_players, 1)) * 100)}% du total` : ''} changeType="neutral" />
+        <StatsCard title="Coins en circulation" value={(kpis?.total_coins ?? 0).toLocaleString()} icon={<Coins className="h-5 w-5" />} />
+        <StatsCard title="Parties jouées (total)" value={(kpis?.total_games_played ?? 0).toLocaleString()} icon={<Gamepad2 className="h-5 w-5" />} />
+        <StatsCard title="Total victoires" value={(kpis?.total_wins ?? 0).toLocaleString()} icon={<Trophy className="h-5 w-5" />}
+          change={kpis?.total_games_played ? `${Math.round((kpis.total_wins / kpis.total_games_played) * 100)}% win rate global` : '—'} changeType="neutral" />
+        <StatsCard title="Rang le plus élevé atteint" value={kpis?.top_rank ?? 'N/A'} icon={<Star className="h-5 w-5" />} accent />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="card-plugbet p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-text-secondary">Distribution des rangs</h3>
-            <span className="rounded-md bg-info/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-info">
-              {activeRanks.length} rangs
-            </span>
-          </div>
+        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
+          <h3 className="mb-4 text-sm font-semibold text-text-muted">Distribution des rangs</h3>
           <div className="h-64">
             {activeRanks.length > 0 ? <Bar data={rankChart} options={chartBase} /> : (
               <div className="flex h-full items-center justify-center text-text-muted text-sm">Aucun joueur enregistré</div>
@@ -253,13 +201,8 @@ export default function Overview() {
           </div>
         </div>
 
-        <div className="card-plugbet p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-text-secondary">Répartition des soldes</h3>
-            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-              Coins
-            </span>
-          </div>
+        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
+          <h3 className="mb-4 text-sm font-semibold text-text-muted">Répartition des soldes de coins</h3>
           <div className="h-64">
             <Line data={coinsChart} options={chartBase} />
           </div>
@@ -268,26 +211,24 @@ export default function Overview() {
 
       {/* ACTIVITÉ PAR JEU */}
       {gameStats.length > 0 && (
-        <div className="card-plugbet p-6">
-          <div className="mb-5 flex items-center gap-2">
+        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
+          <div className="mb-4 flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-bold text-text">Activité par jeu</h3>
-            <span className="ml-auto rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-              {gameStats.length} actifs
-            </span>
+            <h3 className="text-lg font-semibold text-text">Activité par jeu</h3>
+            <span className="ml-auto text-xs text-text-muted">{gameStats.length} jeux actifs</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {gameStats.map(g => {
               const meta = GAMES_META[g.game_type];
               return (
                 <div key={g.game_type}
-                  className="flex items-center gap-3 rounded-xl border border-border/40 bg-surface/50 p-3 transition-all hover:border-primary/30 hover:bg-surface-lighter">
+                  className="flex items-center gap-3 rounded-xl border border-border/20 bg-surface p-3"
+                  style={{ borderLeftWidth: 3, borderLeftColor: g.color }}>
                   <span className="text-2xl">{meta?.emoji ?? '🎮'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-text truncate">{g.label}</p>
-                    <p className="text-[11px] text-text-secondary">
-                      <span className="font-bold text-primary">{g.rounds}</span> parties ·{' '}
-                      <span className="font-bold text-warning">{g.bets_in.toLocaleString()}</span> coins
+                    <p className="font-medium text-text truncate">{g.label}</p>
+                    <p className="text-xs text-text-muted">
+                      {g.rounds} parties • {g.bets_in.toLocaleString()} coins misés
                     </p>
                   </div>
                 </div>
@@ -297,52 +238,37 @@ export default function Overview() {
         </div>
       )}
 
-      <div className="card-plugbet p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-text">Top 5 joueurs par XP</h3>
-          <span className="rounded-md bg-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">
-            Leaderboard
-          </span>
-        </div>
+      <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
+        <h3 className="mb-4 text-lg font-semibold text-text">Top 5 joueurs par XP</h3>
         {topPlayers.length === 0 ? (
-          <p className="py-8 text-center text-sm text-text-secondary">Aucun joueur enregistré pour l'instant.</p>
+          <p className="py-8 text-center text-text-muted">Aucun joueur enregistré pour l'instant.</p>
         ) : (
-          <div className="space-y-1.5">
-            {topPlayers.map((p, idx) => {
-              const podium =
-                idx === 0 ? { bg: 'bg-warning/15 text-warning border-warning/30', medal: '🥇' } :
-                idx === 1 ? { bg: 'bg-info/15 text-info border-info/30', medal: '🥈' } :
-                idx === 2 ? { bg: 'bg-orange/15 text-orange border-orange/30', medal: '🥉' } :
-                { bg: 'bg-surface-lighter text-text-secondary border-border/40', medal: '' };
-              return (
-                <div key={p.id}
-                  className="group flex items-center justify-between gap-3 rounded-xl border border-transparent p-3 transition-all hover:border-primary/20 hover:bg-surface-lighter">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-extrabold ${podium.bg}`}>
-                      {podium.medal || `#${idx + 1}`}
-                    </span>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-extrabold text-primary">
-                      {(p.username ?? '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-text truncate">{p.username ?? 'Joueur'}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-[11px] font-bold ${RANK_TEXT[p.rank ?? 'Bronze'] ?? 'text-slate-400'}`}>
-                          {p.rank ?? 'Bronze'}
-                        </span>
-                        <span className="text-[11px] text-text-secondary">
-                          {p.games_played ?? 0} parties · {p.total_wins ?? 0} victoires
-                        </span>
-                      </div>
-                    </div>
+          <div className="space-y-2">
+            {topPlayers.map((p, idx) => (
+              <div key={p.id} className="flex items-center justify-between rounded-xl p-3 transition-colors hover:bg-surface-lighter">
+                <div className="flex items-center gap-4">
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                    idx === 0 ? 'bg-yellow-500/20 text-yellow-400' :
+                    idx === 1 ? 'bg-gray-300/20 text-gray-300' :
+                    idx === 2 ? 'bg-amber-600/20 text-amber-500' : 'bg-surface-lighter text-text-muted'
+                  }`}>{idx + 1}</span>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+                    {(p.username ?? '?').charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-right">
-                    <p className="display-number text-base text-primary">{(p.xp ?? 0).toLocaleString()} XP</p>
-                    <p className="text-[11px] text-text-secondary">{(p.coins ?? 0).toLocaleString()} coins</p>
+                  <div>
+                    <p className="font-medium text-text">{p.username ?? 'Joueur'}</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium ${RANK_TEXT[p.rank ?? 'Bronze'] ?? 'text-slate-400'}`}>{p.rank ?? 'Bronze'}</span>
+                      <span className="text-xs text-text-muted">{p.games_played ?? 0} parties · {p.total_wins ?? 0} victoires</span>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+                <div className="text-right">
+                  <p className="font-bold text-primary">{(p.xp ?? 0).toLocaleString()} XP</p>
+                  <p className="text-xs text-text-muted">{(p.coins ?? 0).toLocaleString()} coins</p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -139,18 +139,15 @@ export default function GamesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-end justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-primary">
-            Plugbet · Game stats
-          </p>
-          <h1 className="hero-number mt-1 text-3xl text-text">Statistiques par jeu</h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Données extraites de <code className="rounded bg-surface-lighter px-1.5 py-0.5 text-xs text-primary">treasury_movements</code> — temps réel
+          <h1 className="text-2xl font-bold text-text">Statistiques par jeu</h1>
+          <p className="text-sm text-text-muted">
+            Données extraites de <code className="text-xs">treasury_movements</code> — temps réel
           </p>
         </div>
         <button onClick={fetchStats}
-          className="flex items-center gap-2 rounded-xl border border-border/40 bg-surface-light/50 px-4 py-2 text-sm font-semibold text-text-secondary hover:border-primary/30 hover:text-text transition-colors">
+          className="flex items-center gap-2 rounded-xl border border-border/30 px-4 py-2 text-sm text-text-muted transition-colors hover:bg-surface-lighter hover:text-text">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Rafraîchir
         </button>
@@ -167,31 +164,27 @@ export default function GamesPage() {
             <StatsCard
               title="Total joueurs inscrits"
               value={totalPlayers.toLocaleString()}
-              icon={<Users className="h-5 w-5" strokeWidth={2.2} />}
-              variant="green"
+              icon={<Users className="h-5 w-5" />}
               accent
             />
             <StatsCard
               title="Total parties (rounds)"
               value={totalRounds.toLocaleString()}
-              icon={<Gamepad2 className="h-5 w-5" strokeWidth={2.2} />}
+              icon={<Gamepad2 className="h-5 w-5" />}
               change={totalActivePlayers > 0 ? `${totalActivePlayers} joueurs actifs (estim.)` : ''}
               changeType="neutral"
-              variant="purple"
             />
             <StatsCard
               title="Coins misés (cumul)"
               value={totalBetsIn.toLocaleString()}
-              icon={<TrendingUp className="h-5 w-5" strokeWidth={2.2} />}
-              variant="warning"
+              icon={<TrendingUp className="h-5 w-5" />}
             />
             <StatsCard
               title="Profit net global"
               value={totalProfit.toLocaleString()}
-              icon={<Trophy className="h-5 w-5" strokeWidth={2.2} />}
+              icon={<Trophy className="h-5 w-5" />}
               change={totalBetsIn > 0 ? `${((totalProfit / totalBetsIn) * 100).toFixed(1)}% RTP inverse` : ''}
               changeType={totalProfit >= 0 ? 'up' : 'down'}
-              variant={totalProfit >= 0 ? 'green' : 'red'}
             />
           </div>
 

@@ -247,43 +247,16 @@ export default function Analytics() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-info">
-          Plugbet · Analytics
-        </p>
-        <h1 className="hero-number mt-1 text-3xl text-text">Statistiques</h1>
-        <p className="mt-2 text-sm text-text-secondary">
-          Analyse globale — joueurs, rangs et activité par jeu
-        </p>
+        <h1 className="text-2xl font-bold text-text">Statistiques</h1>
+        <p className="text-sm text-text-muted">Analyse globale — joueurs et activité par jeu</p>
       </div>
 
       {/* CARDS GLOBAUX */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard
-          title="Joueurs Bronze"
-          value={rankStats['Bronze'] ?? 0}
-          icon={<Target className="h-5 w-5" strokeWidth={2.2} />}
-          variant="orange"
-        />
-        <StatsCard
-          title="Joueurs Gold+"
-          value={(rankStats['Gold'] ?? 0) + (rankStats['Platinum'] ?? 0) + (rankStats['Diamond'] ?? 0) + (rankStats['Legend'] ?? 0)}
-          icon={<Trophy className="h-5 w-5" strokeWidth={2.2} />}
-          variant="warning" accent
-        />
-        <StatsCard
-          title="Total parties"
-          value={totalRounds.toLocaleString()}
-          icon={<Gamepad2 className="h-5 w-5" strokeWidth={2.2} />}
-          variant="purple"
-        />
-        <StatsCard
-          title="Profit net système"
-          value={totalProfit.toLocaleString()}
-          icon={<Coins className="h-5 w-5" strokeWidth={2.2} />}
-          change={totalBets > 0 ? `${((totalProfit / totalBets) * 100).toFixed(1)}% du wagered` : ''}
-          changeType={totalProfit >= 0 ? 'up' : 'down'}
-          variant={totalProfit >= 0 ? 'green' : 'red'}
-        />
+        <StatsCard title="Joueurs Bronze" value={rankStats['Bronze'] ?? 0} icon={<Target className="h-5 w-5" />} />
+        <StatsCard title="Joueurs Gold+" value={(rankStats['Gold'] ?? 0) + (rankStats['Platinum'] ?? 0) + (rankStats['Diamond'] ?? 0) + (rankStats['Legend'] ?? 0)} icon={<Trophy className="h-5 w-5" />} accent />
+        <StatsCard title="Total parties (rounds)" value={totalRounds.toLocaleString()} icon={<Gamepad2 className="h-5 w-5" />} />
+        <StatsCard title="Profit net système" value={totalProfit.toLocaleString()} icon={<Coins className="h-5 w-5" />} change={totalBets > 0 ? `${((totalProfit / totalBets) * 100).toFixed(1)}% du wagered` : ''} changeType={totalProfit >= 0 ? 'up' : 'down'} />
       </div>
 
       {/* ACTIVITÉ DERNIÈRE SEMAINE */}
