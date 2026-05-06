@@ -3,7 +3,7 @@ import {
   Vault, ArrowDownToLine, ArrowUpFromLine, RefreshCw,
   Lock, CheckCircle2, X, Loader2, AlertTriangle, Coins, Gamepad2,
   ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, ArrowRight,
-  Wallet, TrendingUp, Smartphone,
+  Wallet, TrendingUp, Smartphone, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -83,6 +83,29 @@ type ModalType = 'withdraw' | 'deposit' | 'to_game' | 'to_admin' |
                  'admin_to_wallet' | 'wallet_to_admin' | null;
 type Tab = 'overview' | 'movements' | 'players';
 
+function formatRelativeTime(iso: string): string {
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return 'à l\'instant';
+  const min = Math.floor(seconds / 60);
+  if (min < 60) return `il y a ${min} min`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `il y a ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `il y a ${days}j`;
+}
+
+interface ReconcileResult {
+  consistent: boolean;
+  diff: number;
+  user_coins: number;
+  treasury_balance: number;
+  admin_balance: number;
+  total_in_system: number;
+  deposits_total: number;
+  withdrawals_total: number;
+  checked_at: string;
+}
+
 export default function TreasuryPage() {
   const { isSuperAdmin, loading: authLoading } = useAuth();
   const [game, setGame] = useState<TreasuryRow | null>(null);
@@ -90,10 +113,27 @@ export default function TreasuryPage() {
   const [movements, setMovements] = useState<MovementRow[]>([]);
   const [freemoTxs, setFreemoTxs] = useState<FreemoTxRow[]>([]);
   const [adminWallet, setAdminWallet] = useState<number>(0);
+  const [reconcile, setReconcile] = useState<ReconcileResult | null>(null);
+  const [reconciling, setReconciling] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
   const [gameFilter, setGameFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<ModalType>(null);
+
+  const loadReconcile = useCallback(async () => {
+    try {
+      const { data } = await supabase.rpc('reconcile_money_system');
+      if (data) setReconcile(data as ReconcileResult);
+    } catch (e) {
+      console.error('Reconcile error:', e);
+    }
+  }, []);
+
+  const runManualReconcile = async () => {
+    setReconciling(true);
+    await loadReconcile();
+    setReconciling(false);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,8 +154,9 @@ export default function TreasuryPage() {
       const w = walletRes.data as { coins?: number };
       setAdminWallet(w.coins ?? 0);
     }
+    await loadReconcile();
     setLoading(false);
-  }, []);
+  }, [loadReconcile]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -189,6 +230,45 @@ export default function TreasuryPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* RECONCILIATION BANNER */}
+      {reconcile && (
+        <div className={`rounded-2xl border p-4 ${
+          reconcile.consistent
+            ? 'border-success/30 bg-success/5'
+            : 'border-danger/40 bg-danger/10'
+        }`}>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className={`rounded-lg p-2 ${
+              reconcile.consistent ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'
+            }`}>
+              {reconcile.consistent ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`font-bold ${reconcile.consistent ? 'text-success' : 'text-danger'}`}>
+                {reconcile.consistent
+                  ? '✅ Système réconcilié'
+                  : `🚨 IMBALANCE DÉTECTÉ — Diff : ${reconcile.diff.toLocaleString()} coins`}
+              </p>
+              <p className="text-xs text-text-muted mt-1">
+                Total système : <strong className="text-text">{reconcile.total_in_system.toLocaleString()}</strong> coins
+                {' · '}
+                Dépôts cumulés : <strong className="text-text">{reconcile.deposits_total.toLocaleString()}</strong>
+                {' · '}
+                Vérifié {formatRelativeTime(reconcile.checked_at)}
+              </p>
+            </div>
+            <button
+              onClick={runManualReconcile}
+              disabled={reconciling}
+              className="flex items-center gap-2 rounded-lg border border-border/30 bg-surface px-3 py-2 text-xs font-semibold text-text-muted hover:text-text hover:bg-surface-lighter disabled:opacity-50"
+            >
+              {reconciling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Forcer une réconciliation
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

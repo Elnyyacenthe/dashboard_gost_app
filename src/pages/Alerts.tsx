@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   AlertTriangle, CheckCircle2, Search, RefreshCw, Shield,
-  TrendingUp, Coins, Activity, X, Loader2,
+  TrendingUp, Coins, Activity, X, Loader2, Users, Database, Bot,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -9,57 +9,99 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
 
 type Severity = 'low' | 'medium' | 'high' | 'critical';
-type AlertType = 'high_winrate' | 'large_winnings' | 'frequent_withdrawals' | 'win_streak';
 
 interface Alert {
-  id: string;
-  user_id: string;
-  alert_type: AlertType;
+  id: number | string;
+  user_id: string | null;
+  alert_type: string;
   severity: Severity;
   title: string;
   description: string | null;
+  context: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
   resolved: boolean;
-  created_at: string;
   resolved_at: string | null;
-  username: string | null;
-  email: string | null;
-  coins: number | null;
-  kyc_verified: boolean | null;
+  resolved_by: string | null;
+  created_at: string;
+  // Optionnel (jointure user)
+  username?: string | null;
 }
 
-const sevCfg: Record<Severity, { color: string; label: string }> = {
-  low:      { color: 'bg-info/15 text-info border-info/30',         label: 'Faible' },
-  medium:   { color: 'bg-warning/15 text-warning border-warning/30', label: 'Moyen' },
-  high:     { color: 'bg-danger/15 text-danger border-danger/30',   label: 'Élevé' },
-  critical: { color: 'bg-danger/30 text-danger border-danger',       label: 'Critique' },
+const sevCfg: Record<Severity, { color: string; label: string; ring: string }> = {
+  low:      { color: 'bg-info/15 text-info border-info/30',         label: 'Faible',   ring: 'ring-info/30' },
+  medium:   { color: 'bg-warning/15 text-warning border-warning/30', label: 'Moyen',    ring: 'ring-warning/30' },
+  high:     { color: 'bg-danger/15 text-danger border-danger/30',   label: 'Élevé',    ring: 'ring-danger/30' },
+  critical: { color: 'bg-danger/30 text-danger border-danger',       label: 'Critique', ring: 'ring-danger' },
 };
 
-const typeIcons: Record<AlertType, React.ReactNode> = {
+const typeIcons: Record<string, React.ReactNode> = {
+  // Anciens types
   high_winrate:          <TrendingUp className="h-4 w-4" />,
   large_winnings:        <Coins className="h-4 w-4" />,
   frequent_withdrawals:  <Activity className="h-4 w-4" />,
   win_streak:            <TrendingUp className="h-4 w-4" />,
+  // Nouveaux types Ludo V2 / Cora V3
+  money_imbalance:       <Database className="h-4 w-4" />,
+  unusual_payout:        <Coins className="h-4 w-4" />,
+  rapid_wins:            <Bot className="h-4 w-4" />,
+  wallet_drift:          <Database className="h-4 w-4" />,
+  cora_high_winrate:     <TrendingUp className="h-4 w-4" />,
+  cora_high_volume:      <Coins className="h-4 w-4" />,
+  cora_recurrent_pair:   <Users className="h-4 w-4" />,
+};
+
+const typeLabels: Record<string, string> = {
+  money_imbalance:       'Désequilibre financier',
+  unusual_payout:        'Payout exceptionnel',
+  rapid_wins:            'Victoires rapides',
+  wallet_drift:          'Wallet incohérent',
+  cora_high_winrate:     'Cora : winrate suspect',
+  cora_high_volume:      'Cora : volume élevé',
+  cora_recurrent_pair:   'Cora : paire récurrente',
 };
 
 export default function AlertsPage() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'unresolved' | 'resolved' | 'all'>('unresolved');
+  const [sevFilter, setSevFilter] = useState<Severity | 'all'>('all');
   const [scanResult, setScanResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    // Lecture directe de la table admin_alerts (RLS super_admin only)
     const { data, error } = await supabase
-      .from('admin_alerts_view')
+      .from('admin_alerts')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .limit(500);
     if (error) console.error('Load alerts:', error);
-    if (data) setAlerts(data as Alert[]);
+    if (data) {
+      // Enrich avec username si user_id renseigne
+      const userIds = [...new Set((data as Alert[]).map(a => a.user_id).filter(Boolean))] as string[];
+      let usernames: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('id, username')
+          .in('id', userIds);
+        if (profiles) {
+          usernames = (profiles as { id: string; username: string | null }[])
+            .reduce<Record<string, string>>((acc, p) => {
+              acc[p.id] = p.username ?? 'Joueur';
+              return acc;
+            }, {});
+        }
+      }
+      const enriched = (data as Alert[]).map(a => ({
+        ...a,
+        username: a.user_id ? (usernames[a.user_id] ?? null) : null,
+      }));
+      setAlerts(enriched);
+    }
     setLoading(false);
   }, []);
 
@@ -76,19 +118,37 @@ export default function AlertsPage() {
   const runScan = async () => {
     setScanning(true);
     setScanResult(null);
-    const { data, error } = await supabase.rpc('scan_for_fraud_patterns');
+    // Cora fraud scan (la fonction Ludo v2 alimente automatiquement via triggers)
+    const { data: coraScan, error: coraErr } = await supabase.rpc('cora_scan_fraud_patterns');
+    let total = (coraScan as number) ?? 0;
+
+    // Optionnel : ancienne RPC fraud (si elle existe encore)
+    const { data: oldScan } = await supabase.rpc('scan_for_fraud_patterns');
+    if (typeof oldScan === 'number') total += oldScan;
+
+    // Manual reconciliation (peut générer money_imbalance alert)
+    const { data: recon } = await supabase.rpc('reconcile_money_system');
+    if (recon && (recon as { consistent: boolean }).consistent === false) total += 1;
+
     setScanning(false);
-    if (error) {
-      setScanResult(`Erreur: ${error.message}`);
+    if (coraErr) {
+      setScanResult(`Erreur scan : ${coraErr.message}`);
     } else {
-      setScanResult(`${data ?? 0} nouvelle(s) alerte(s) détectée(s)`);
+      setScanResult(`${total} nouvelle(s) alerte(s) détectée(s)`);
       load();
     }
     setTimeout(() => setScanResult(null), 4000);
   };
 
-  const resolve = async (id: string) => {
-    await supabase.rpc('resolve_admin_alert', { p_alert_id: id });
+  const resolve = async (id: number | string) => {
+    // Update direct (la table admin_alerts permet l'update super_admin via la policy "for all")
+    await supabase
+      .from('admin_alerts')
+      .update({
+        resolved: true,
+        resolved_at: new Date().toISOString(),
+      })
+      .eq('id', id);
     load();
   };
 
@@ -96,7 +156,7 @@ export default function AlertsPage() {
     return <div className="flex h-40 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSuperAdmin) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-danger/30 bg-danger/5 p-16 text-center">
         <Shield className="h-12 w-12 text-danger" />
@@ -110,7 +170,12 @@ export default function AlertsPage() {
 
   const filtered = alerts
     .filter(a => filter === 'all' || (filter === 'resolved' ? a.resolved : !a.resolved))
-    .filter(a => !search || a.username?.toLowerCase().includes(search.toLowerCase()) || a.title.toLowerCase().includes(search.toLowerCase()));
+    .filter(a => sevFilter === 'all' || a.severity === sevFilter)
+    .filter(a => !search ||
+      a.username?.toLowerCase().includes(search.toLowerCase()) ||
+      a.title.toLowerCase().includes(search.toLowerCase()) ||
+      a.alert_type.toLowerCase().includes(search.toLowerCase())
+    );
 
   const stats = {
     unresolved: alerts.filter(a => !a.resolved).length,
@@ -121,13 +186,15 @@ export default function AlertsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-6 w-6 text-warning" />
             <h1 className="text-2xl font-bold text-text">Alertes anti-fraude</h1>
           </div>
-          <p className="mt-1 text-sm text-text-muted">Détection automatique de patterns suspects</p>
+          <p className="mt-1 text-sm text-text-muted">
+            Détection automatique : déséquilibres financiers, payouts suspects, collusion, winrate anormal
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -136,7 +203,7 @@ export default function AlertsPage() {
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
           >
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-            Lancer un scan
+            Scan + Reconcile
           </button>
           <button onClick={load} className="flex items-center gap-2 rounded-lg border border-border/30 px-4 py-2 text-sm text-text-muted hover:bg-surface-lighter hover:text-text">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -151,7 +218,6 @@ export default function AlertsPage() {
         </div>
       )}
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
         <StatCard label="Non résolues" value={stats.unresolved} icon={<AlertTriangle />} color="text-warning" bg="bg-warning/10" />
         <StatCard label="Critiques" value={stats.critical} icon={<AlertTriangle />} color="text-danger" bg="bg-danger/10" />
@@ -159,13 +225,12 @@ export default function AlertsPage() {
         <StatCard label="Dernières 24h" value={stats.today} icon={<Activity />} color="text-info" bg="bg-info/10" />
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 max-w-sm min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
           <input
             type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher joueur ou titre..."
+            placeholder="Rechercher joueur, titre, type..."
             className="w-full rounded-lg border border-border/30 bg-surface-light pl-10 pr-4 py-2 text-sm text-text placeholder:text-text-muted focus:border-primary focus:outline-none"
           />
         </div>
@@ -179,9 +244,18 @@ export default function AlertsPage() {
             </button>
           ))}
         </div>
+        <div className="flex gap-1 rounded-lg border border-border/30 bg-surface-light p-1">
+          {(['all', 'critical', 'high', 'medium', 'low'] as const).map(s => (
+            <button key={s} onClick={() => setSevFilter(s)}
+              className={`rounded px-3 py-1 text-xs font-medium ${
+                sevFilter === s ? 'bg-primary text-white' : 'text-text-muted hover:text-text'
+              }`}>
+              {s === 'all' ? 'Tous' : sevCfg[s as Severity].label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Alerts */}
       {loading ? (
         <div className="flex h-40 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
       ) : filtered.length === 0 ? (
@@ -189,7 +263,7 @@ export default function AlertsPage() {
           <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-success/70" />
           <p className="font-semibold text-text">Aucune alerte {filter === 'unresolved' ? 'en attente' : ''}</p>
           <p className="mt-2 text-sm text-text-muted">
-            Cliquez sur "Lancer un scan" pour détecter de nouveaux patterns suspects.
+            Cliquez sur "Scan + Reconcile" pour déclencher manuellement la détection.
           </p>
         </div>
       ) : (
@@ -222,6 +296,9 @@ function StatCard({ label, value, icon, color, bg }: {
 function AlertRow({ alert, onResolve }: { alert: Alert; onResolve: () => void }) {
   const sev = sevCfg[alert.severity];
   const icon = typeIcons[alert.alert_type] ?? <AlertTriangle className="h-4 w-4" />;
+  const typeLabel = typeLabels[alert.alert_type] ?? alert.alert_type;
+  // metadata pour cora_*, context pour ludo_v2/wallet
+  const ctx = alert.metadata ?? alert.context ?? null;
 
   return (
     <div className={`rounded-2xl border ${sev.color} bg-surface-light p-5 ${alert.resolved ? 'opacity-50' : ''}`}>
@@ -235,6 +312,9 @@ function AlertRow({ alert, onResolve }: { alert: Alert; onResolve: () => void })
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${sev.color}`}>
               {sev.label}
             </span>
+            <span className="rounded-full bg-text-muted/15 px-2 py-0.5 text-[10px] font-bold uppercase text-text-muted">
+              {typeLabel}
+            </span>
             {alert.resolved && (
               <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">
                 Résolue
@@ -242,22 +322,21 @@ function AlertRow({ alert, onResolve }: { alert: Alert; onResolve: () => void })
             )}
           </div>
 
-          <div className="flex items-center gap-3 mb-2 text-xs text-text-muted">
-            <span className="font-medium text-text">{alert.username ?? 'Inconnu'}</span>
-            {alert.email && <span>• {alert.email}</span>}
-            {alert.coins != null && <span>• {alert.coins.toLocaleString()} coins</span>}
-            {alert.kyc_verified && <span className="text-success">• ✓ KYC</span>}
-          </div>
+          {(alert.username || alert.user_id) && (
+            <div className="flex items-center gap-3 mb-2 text-xs text-text-muted">
+              <span className="font-medium text-text">{alert.username ?? alert.user_id?.slice(0, 8)}</span>
+            </div>
+          )}
 
           {alert.description && (
             <p className="text-sm text-text-secondary mb-2">{alert.description}</p>
           )}
 
-          {alert.metadata && Object.keys(alert.metadata).length > 0 && (
+          {ctx && Object.keys(ctx).length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
-              {Object.entries(alert.metadata).map(([k, v]) => (
+              {Object.entries(ctx).slice(0, 8).map(([k, v]) => (
                 <span key={k} className="rounded bg-surface px-2 py-0.5 text-[11px] text-text-muted font-mono">
-                  {k}: <span className="text-text">{String(v)}</span>
+                  {k}: <span className="text-text">{typeof v === 'object' ? JSON.stringify(v).slice(0, 40) : String(v).slice(0, 40)}</span>
                 </span>
               ))}
             </div>
