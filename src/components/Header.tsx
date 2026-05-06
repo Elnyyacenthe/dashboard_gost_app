@@ -121,19 +121,23 @@ export default function Header({ profile, onSignOut, isSuperAdmin = false, onMen
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border/20 bg-surface/80 px-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border/40 bg-surface/70 px-4 backdrop-blur-2xl sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
           onClick={onMenuClick}
           aria-label="Ouvrir le menu"
-          className="-ml-1 rounded-lg p-2 text-text-muted transition-colors hover:bg-surface-lighter hover:text-text lg:hidden"
+          className="-ml-1 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-lighter hover:text-text lg:hidden"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-5 w-5" strokeWidth={2.2} />
         </button>
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-text sm:text-lg">Dashboard</h2>
-          <p className="truncate text-xs text-text-muted">Bienvenue, {profile?.username ?? 'Admin'}</p>
+          <p className="truncate text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
+            Plugbet · Console
+          </p>
+          <h2 className="truncate hero-number text-base text-text sm:text-lg">
+            Bienvenue, <span className="text-primary">{profile?.username ?? 'Admin'}</span>
+          </h2>
         </div>
       </div>
 
@@ -145,11 +149,11 @@ export default function Header({ profile, onSignOut, isSuperAdmin = false, onMen
             type="button"
             onClick={openNotifications}
             aria-label="Notifications"
-            className="relative rounded-xl p-2 text-text-muted transition-colors hover:bg-surface-lighter hover:text-text"
+            className="relative rounded-xl p-2 text-text-secondary transition-colors hover:bg-surface-lighter hover:text-text"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-5 w-5" strokeWidth={2.2} />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+              <span className="badge-danger absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-extrabold text-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -240,15 +244,15 @@ export default function Header({ profile, onSignOut, isSuperAdmin = false, onMen
           <button
             type="button"
             onClick={() => { setShowMenu(!showMenu); setShowNotif(false); }}
-            className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-surface-lighter"
+            className="flex items-center gap-2 rounded-xl border border-border/40 bg-surface/40 p-1.5 pr-2.5 transition-colors hover:border-primary/30 hover:bg-surface-lighter"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-sm font-extrabold text-primary">
               {profile?.username?.charAt(0).toUpperCase() ?? 'A'}
             </div>
-            <span className="hidden text-sm font-medium text-text md:block">
+            <span className="hidden text-sm font-semibold text-text md:block">
               {profile?.username ?? 'Admin'}
             </span>
-            <ChevronDown className={`h-4 w-4 text-text-muted transition-transform duration-200 ${showMenu ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-4 w-4 text-text-secondary transition-transform duration-200 ${showMenu ? 'rotate-180' : ''}`} />
           </button>
 
           {showMenu && (

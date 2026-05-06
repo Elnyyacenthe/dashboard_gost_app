@@ -186,22 +186,25 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <Scale className="h-6 w-6 text-warning" />
-            <h1 className="text-2xl font-bold text-text">Comptabilité & Audit</h1>
-            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-warning">
+            Plugbet · Ledger audit
+          </p>
+          <div className="mt-1 flex items-center gap-3 flex-wrap">
+            <Scale className="h-7 w-7 text-warning" strokeWidth={2} />
+            <h1 className="hero-number text-3xl text-text">Comptabilité</h1>
+            <span className="rounded-md bg-warning/15 border border-warning/30 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-warning">
               Super Admin
             </span>
           </div>
-          <p className="mt-1 text-sm text-text-muted">
-            Traçabilité complète des mouvements d'argent — caisses, joueurs, Mobile Money
+          <p className="mt-2 text-sm text-text-secondary">
+            Traçabilité complète — caisses, joueurs, Mobile Money, zero-sum vérifiable
           </p>
         </div>
         <button
           onClick={load}
-          className="flex items-center gap-2 rounded-lg border border-border/30 px-4 py-2 text-sm text-text-muted hover:bg-surface-lighter hover:text-text"
+          className="flex items-center gap-2 rounded-xl border border-border/40 bg-surface-light/50 px-4 py-2 text-sm font-semibold text-text-secondary hover:border-primary/30 hover:text-text transition-colors"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Actualiser
@@ -213,23 +216,33 @@ export default function AuditPage() {
       ) : (
         <>
           {/* ZERO-SUM CHECK */}
-          <div className={`rounded-2xl border p-6 ${
-            isBalanced
-              ? 'border-success/30 bg-gradient-to-br from-success/10 to-success/5'
-              : 'border-danger/30 bg-gradient-to-br from-danger/10 to-danger/5'
+          <div className={`card-plugbet relative overflow-hidden p-6 ${
+            isBalanced ? 'card-glow-green' : 'card-glow-red pulse-danger'
           }`}>
-            <div className="flex items-center gap-3 mb-4">
-              {isBalanced ? (
-                <CheckCircle2 className="h-6 w-6 text-success" />
-              ) : (
-                <AlertTriangle className="h-6 w-6 text-danger" />
-              )}
+            <span className={`absolute left-0 top-0 h-full w-[3px] ${isBalanced ? 'bg-primary' : 'bg-danger'}`} />
+            <div className={`absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-20 blur-3xl ${
+              isBalanced ? 'halo-green' : 'halo-red'
+            }`} />
+
+            <div className="relative flex items-center gap-3 mb-5">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                isBalanced ? 'bg-primary/15 text-primary' : 'bg-danger/15 text-danger'
+              }`}>
+                {isBalanced
+                  ? <CheckCircle2 className="h-6 w-6" strokeWidth={2.5} />
+                  : <AlertTriangle className="h-6 w-6" strokeWidth={2.5} />}
+              </div>
               <div>
-                <h2 className="text-lg font-bold text-text">
-                  {isBalanced ? 'Système équilibré ✓' : 'Discrépance détectée ⚠️'}
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                  isBalanced ? 'text-primary' : 'text-danger'
+                }`}>
+                  {isBalanced ? 'Zero-sum check' : 'Imbalance critique'}
+                </p>
+                <h2 className={`hero-number text-2xl ${isBalanced ? 'text-text' : 'text-danger'}`}>
+                  {isBalanced ? 'Système équilibré' : 'Discrépance détectée'}
                 </h2>
-                <p className="text-xs text-text-muted">
-                  Vérification que tous les coins du système viennent bien d'un dépôt Mobile Money réel
+                <p className="mt-0.5 text-xs text-text-secondary">
+                  Vérification que les coins du système proviennent bien de dépôts Mobile Money réels
                 </p>
               </div>
             </div>
@@ -472,14 +485,18 @@ function BalanceCard({ icon, label, value, color, highlight }: {
   highlight?: boolean;
 }) {
   return (
-    <div className={`rounded-xl border p-3 ${
-      highlight ? `bg-${color}/10 border-${color}/30` : 'bg-surface/50 border-border/20'
+    <div className={`rounded-xl border p-3 transition-colors ${
+      highlight ? `bg-${color}/10 border-${color}/30` : 'border-border/40 bg-surface/40 hover:border-border-light'
     }`}>
-      <div className="flex items-center gap-1.5 text-xs text-text-muted">
+      <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${
+        highlight ? `text-${color}` : 'text-text-secondary'
+      }`}>
         {icon && <span className={`text-${color}`}>{icon}</span>}
         <span className="truncate">{label}</span>
       </div>
-      <p className={`mt-1 font-bold text-${color}`}>{value.toLocaleString()}</p>
+      <p className={`hero-number mt-1 text-lg ${highlight ? `text-${color}` : 'text-text'}`}>
+        {value.toLocaleString()}
+      </p>
     </div>
   );
 }

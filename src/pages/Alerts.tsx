@@ -186,26 +186,36 @@ export default function AlertsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-warning" />
-            <h1 className="text-2xl font-bold text-text">Alertes anti-fraude</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-warning">
+            Plugbet · Anti-fraud
+          </p>
+          <div className="mt-1 flex items-center gap-3 flex-wrap">
+            <AlertTriangle className="h-7 w-7 text-warning" strokeWidth={2} />
+            <h1 className="hero-number text-3xl text-text">Alertes</h1>
+            {stats.critical > 0 && (
+              <span className="badge-danger flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">
+                <span className="live-dot h-1.5 w-1.5 rounded-full bg-white" />
+                {stats.critical} CRITIQUE{stats.critical > 1 ? 'S' : ''}
+              </span>
+            )}
           </div>
-          <p className="mt-1 text-sm text-text-muted">
-            Détection automatique : déséquilibres financiers, payouts suspects, collusion, winrate anormal
+          <p className="mt-2 text-sm text-text-secondary">
+            Détection automatique : déséquilibres, payouts suspects, collusion, winrate anormal
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={runScan}
             disabled={scanning}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold uppercase tracking-wider text-surface hover:bg-primary-light hover:shadow-[0_0_24px_rgba(0,230,118,0.4)] disabled:opacity-50 transition-all"
           >
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-            Scan + Reconcile
+            Scan
           </button>
-          <button onClick={load} className="flex items-center gap-2 rounded-lg border border-border/30 px-4 py-2 text-sm text-text-muted hover:bg-surface-lighter hover:text-text">
+          <button onClick={load}
+            className="flex items-center gap-2 rounded-xl border border-border/40 bg-surface-light/50 px-4 py-2 text-sm font-semibold text-text-secondary hover:border-primary/30 hover:text-text transition-colors">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Actualiser
           </button>
@@ -213,7 +223,8 @@ export default function AlertsPage() {
       </div>
 
       {scanResult && (
-        <div className="rounded-xl bg-success/10 border border-success/30 p-3 text-sm text-success">
+        <div className="card-plugbet card-glow-green flex items-center gap-2 p-3 text-sm font-semibold text-primary">
+          <CheckCircle2 className="h-4 w-4" />
           {scanResult}
         </div>
       )}
@@ -281,13 +292,13 @@ function StatCard({ label, value, icon, color, bg }: {
   label: string; value: number; icon: React.ReactNode; color: string; bg: string;
 }) {
   return (
-    <div className="rounded-xl border border-border/20 bg-surface-light p-5">
+    <div className="card-plugbet relative overflow-hidden p-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-text-muted">{label}</p>
-          <p className="text-2xl font-bold text-text mt-1">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">{label}</p>
+          <p className="hero-number mt-1 text-2xl text-text">{value}</p>
         </div>
-        <div className={`rounded-lg p-2 ${bg} ${color}`}>{icon}</div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bg} ${color}`}>{icon}</div>
       </div>
     </div>
   );

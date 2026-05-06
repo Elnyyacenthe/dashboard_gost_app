@@ -198,3 +198,8 @@ input, textarea, select {
   background: #FF1744;
   box-shadow: 0 0 12px rgba(255, 23, 68, 0.5);
 }
+
+/* Halo decoration for hero banners */
+.halo-green { background: #00E676; }
+.halo-red   { background: #FF1744; }
+.halo-warning { background: #FFD600; }
