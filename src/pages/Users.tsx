@@ -487,34 +487,45 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text">Utilisateurs</h1>
-          <p className="text-sm text-text-muted">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-primary">
+            Plugbet · Players & team
+          </p>
+          <h1 className="hero-number mt-1 text-3xl text-text">Utilisateurs</h1>
+          <p className="mt-2 text-sm text-text-secondary">
             {tab === 'players'
-              ? `${players.length} joueur${players.length !== 1 ? 's' : ''} inscrits`
-              : `${team.length} membre${team.length !== 1 ? 's' : ''} dans l'équipe`}
+              ? <>
+                  <span className="font-bold text-text">{players.length.toLocaleString()}</span> joueur{players.length !== 1 ? 's' : ''} inscrit{players.length !== 1 ? 's' : ''}
+                </>
+              : <>
+                  <span className="font-bold text-text">{team.length.toLocaleString()}</span> membre{team.length !== 1 ? 's' : ''} dans l'équipe
+                </>}
           </p>
         </div>
         {tab === 'team' && (
           <button onClick={() => setShowInvite(true)}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/20 transition-all">
-            <UserPlus className="h-4 w-4" />
+            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-surface hover:bg-primary-light hover:shadow-[0_0_24px_rgba(0,230,118,0.4)] transition-all">
+            <UserPlus className="h-4 w-4" strokeWidth={2.5} />
             Ajouter un membre
           </button>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-border/20 bg-surface-light p-1 w-fit">
+      <div className="flex gap-1 rounded-xl border border-border/40 bg-surface-light/50 p-1 w-fit">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium transition-all ${
-              tab === t.id ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-text'
+            className={`flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-all ${
+              tab === t.id
+                ? 'bg-primary text-surface shadow-[0_0_16px_rgba(0,230,118,0.3)]'
+                : 'text-text-secondary hover:text-text'
             }`}>
             {t.icon}
             {t.label}
-            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tab === t.id ? 'bg-white/20' : 'bg-surface-lighter'}`}>
+            <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+              tab === t.id ? 'bg-surface/30 text-surface' : 'bg-surface-lighter text-text-secondary'
+            }`}>
               {t.count}
             </span>
           </button>

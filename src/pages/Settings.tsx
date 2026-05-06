@@ -93,24 +93,28 @@ export default function Settings() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-text">Paramètres</h1>
-        <p className="text-sm text-text-muted">
-          Configuration de la plateforme — Persistée dans <code className="text-xs">app_settings</code>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-primary">
+          Plugbet · Platform config
+        </p>
+        <h1 className="hero-number mt-1 text-3xl text-text">Paramètres</h1>
+        <p className="mt-2 text-sm text-text-secondary">
+          Configuration plateforme — persistée dans <code className="rounded bg-surface-lighter px-1.5 py-0.5 text-xs text-primary">app_settings</code>
         </p>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl bg-danger/10 border border-danger/20 p-3 text-sm text-danger">
+        <div className="card-plugbet card-glow-red flex items-center gap-2 p-3 text-sm font-semibold text-danger">
           <AlertTriangle className="h-4 w-4" /> {error}
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* General */}
-        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Globe className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-text">Général</h3>
+        <div className="card-plugbet relative overflow-hidden p-6">
+          <span className="absolute left-0 top-0 h-full w-[3px] bg-primary opacity-60" />
+          <div className="mb-5 flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" strokeWidth={2.2} />
+            <h3 className="hero-number text-lg text-text">Général</h3>
           </div>
           <div className="space-y-4">
             <ToggleRow
@@ -129,10 +133,11 @@ export default function Settings() {
         </div>
 
         {/* Economy */}
-        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-text">Économie</h3>
+        <div className="card-plugbet relative overflow-hidden p-6">
+          <span className="absolute left-0 top-0 h-full w-[3px] bg-warning opacity-60" />
+          <div className="mb-5 flex items-center gap-2">
+            <Shield className="h-5 w-5 text-warning" strokeWidth={2.2} />
+            <h3 className="hero-number text-lg text-text">Économie</h3>
           </div>
           <div className="space-y-4">
             <NumberInput
@@ -149,10 +154,11 @@ export default function Settings() {
         </div>
 
         {/* Notifications */}
-        <div className="rounded-2xl border border-border/30 bg-surface-light p-6 lg:col-span-2">
-          <div className="mb-4 flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-text">Notifications</h3>
+        <div className="card-plugbet relative overflow-hidden p-6 lg:col-span-2">
+          <span className="absolute left-0 top-0 h-full w-[3px] bg-info opacity-60" />
+          <div className="mb-5 flex items-center gap-2">
+            <Bell className="h-5 w-5 text-info" strokeWidth={2.2} />
+            <h3 className="hero-number text-lg text-text">Notifications</h3>
           </div>
           <div className="space-y-4">
             <ToggleRow
@@ -171,10 +177,10 @@ export default function Settings() {
         </div>
       </div>
 
-      <button
+      <button type="button"
         onClick={handleSave}
         disabled={saving}
-        className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/25 disabled:opacity-60"
+        className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-surface transition-all hover:bg-primary-light hover:shadow-[0_0_24px_rgba(0,230,118,0.4)] disabled:opacity-50"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> :
          saved ? <CheckCircle2 className="h-4 w-4" /> :

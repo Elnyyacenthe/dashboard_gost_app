@@ -151,63 +151,71 @@ export default function UserDetail() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-4">
-          <button onClick={() => navigate(-1)}
-            className="rounded-lg border border-border/30 p-2 hover:bg-surface-lighter">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 text-2xl font-black text-primary">
-            {(user.username ?? '?').charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold text-text">{user.username ?? '(sans nom)'}</h1>
-              {user.is_blocked && (
-                <span className="rounded-full bg-danger/15 px-2 py-0.5 text-[10px] font-bold uppercase text-danger">Bloqué</span>
-              )}
-              {user.kyc_verified && (
-                <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase text-success flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3" /> KYC
-                </span>
-              )}
-              {user.active_alerts > 0 && (
-                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase text-warning flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> {user.active_alerts} alerte(s)
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-text-muted">{user.email ?? '—'}</p>
-            <p className="text-xs text-text-muted/60 font-mono">{user.id}</p>
-            <p className="mt-1 text-xs text-text-muted">
-              Inscrit {formatDistanceToNow(new Date(user.created_at), { addSuffix: true, locale: fr })}
-              {user.last_seen && ` · Vu ${formatDistanceToNow(new Date(user.last_seen), { addSuffix: true, locale: fr })}`}
-            </p>
-          </div>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setActionModal(user.is_blocked ? 'unblock' : 'block')}
-            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
-              user.is_blocked
-                ? 'bg-success/15 text-success hover:bg-success/25'
-                : 'bg-danger/15 text-danger hover:bg-danger/25'
-            }`}
-          >
-            {user.is_blocked ? <ShieldCheck className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
-            {user.is_blocked ? 'Débloquer' : 'Bloquer'}
-          </button>
-          {isSuperAdmin && (
-            <button
-              onClick={() => setActionModal('adjust')}
-              className="flex items-center gap-2 rounded-xl bg-warning/15 px-3 py-2 text-sm font-semibold text-warning hover:bg-warning/25"
-            >
-              <Coins className="h-4 w-4" />
-              Ajuster coins
+      <div className="card-plugbet relative overflow-hidden p-5">
+        <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-4">
+            <button type="button" onClick={() => navigate(-1)} aria-label="Retour"
+              className="rounded-xl border border-border/40 p-2 text-text-secondary hover:border-primary/30 hover:text-text transition-colors">
+              <ArrowLeft className="h-4 w-4" strokeWidth={2.2} />
             </button>
-          )}
+            <div className="logo-gradient flex h-16 w-16 items-center justify-center rounded-2xl">
+              <span className="hero-number text-2xl text-surface">
+                {(user.username ?? '?').charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-primary">
+                Plugbet · Player 360
+              </p>
+              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                <h1 className="hero-number text-2xl text-text">{user.username ?? '(sans nom)'}</h1>
+                {user.is_blocked && (
+                  <span className="badge-danger rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">Bloqué</span>
+                )}
+                {user.kyc_verified && (
+                  <span className="rounded-md bg-primary/15 border border-primary/30 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" /> KYC
+                  </span>
+                )}
+                {user.active_alerts > 0 && (
+                  <span className="rounded-md bg-warning/15 border border-warning/30 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-warning flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> {user.active_alerts}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-sm text-text-secondary">{user.email ?? '—'}</p>
+              <p className="text-[10px] text-text-muted font-mono">{user.id}</p>
+              <p className="mt-1 text-xs text-text-secondary">
+                Inscrit {formatDistanceToNow(new Date(user.created_at), { addSuffix: true, locale: fr })}
+                {user.last_seen && ` · Vu ${formatDistanceToNow(new Date(user.last_seen), { addSuffix: true, locale: fr })}`}
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2 flex-wrap">
+            <button type="button"
+              onClick={() => setActionModal(user.is_blocked ? 'unblock' : 'block')}
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold uppercase tracking-wider transition-colors ${
+                user.is_blocked
+                  ? 'bg-primary/15 text-primary hover:bg-primary/25'
+                  : 'bg-danger/15 text-danger hover:bg-danger/25'
+              }`}
+            >
+              {user.is_blocked ? <ShieldCheck className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
+              {user.is_blocked ? 'Débloquer' : 'Bloquer'}
+            </button>
+            {isSuperAdmin && (
+              <button type="button"
+                onClick={() => setActionModal('adjust')}
+                className="flex items-center gap-2 rounded-xl bg-warning/15 px-3 py-2 text-sm font-bold uppercase tracking-wider text-warning hover:bg-warning/25 transition-colors"
+              >
+                <Coins className="h-4 w-4" />
+                Ajuster coins
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -227,21 +235,29 @@ export default function UserDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-border/30">
-        <div className="flex gap-1 flex-wrap">
+      <div className="border-b border-border/40">
+        <div className="flex gap-0.5 flex-wrap">
           {([
-            { id: 'activity', label: `Activité (${user.bets_count + user.wins_count})`, icon: <Activity className="h-4 w-4" /> },
-            { id: 'transactions', label: `Mouvements (${movements.length})`, icon: <Coins className="h-4 w-4" /> },
-            { id: 'mobile', label: `Mobile Money (${freemoTxs.length})`, icon: <Smartphone className="h-4 w-4" /> },
-            { id: 'alerts', label: `Alertes (${alerts.length})`, icon: <AlertTriangle className="h-4 w-4" /> },
-            { id: 'tickets', label: `Tickets (${tickets.length})`, icon: <MessageSquare className="h-4 w-4" /> },
-            { id: 'audit', label: `Audit admin (${audit.length})`, icon: <Eye className="h-4 w-4" /> },
-          ] as { id: Tab; label: string; icon: React.ReactNode }[]).map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-                tab === t.id ? 'border-primary text-primary' : 'border-transparent text-text-muted hover:text-text'
+            { id: 'activity', label: 'Activité', count: user.bets_count + user.wins_count, icon: <Activity className="h-4 w-4" /> },
+            { id: 'transactions', label: 'Mouvements', count: movements.length, icon: <Coins className="h-4 w-4" /> },
+            { id: 'mobile', label: 'Mobile Money', count: freemoTxs.length, icon: <Smartphone className="h-4 w-4" /> },
+            { id: 'alerts', label: 'Alertes', count: alerts.length, icon: <AlertTriangle className="h-4 w-4" /> },
+            { id: 'tickets', label: 'Tickets', count: tickets.length, icon: <MessageSquare className="h-4 w-4" /> },
+            { id: 'audit', label: 'Audit admin', count: audit.length, icon: <Eye className="h-4 w-4" /> },
+          ] as { id: Tab; label: string; count: number; icon: React.ReactNode }[]).map(t => (
+            <button type="button" key={t.id} onClick={() => setTab(t.id)}
+              className={`relative flex items-center gap-2 px-3 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+                tab === t.id ? 'text-primary' : 'text-text-secondary hover:text-text'
               }`}>
               {t.icon}{t.label}
+              <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
+                tab === t.id ? 'bg-primary/15 text-primary' : 'bg-surface-lighter text-text-secondary'
+              }`}>
+                {t.count}
+              </span>
+              {tab === t.id && (
+                <span className="active-indicator absolute -bottom-px left-2 right-2 h-0.5 rounded-full" />
+              )}
             </button>
           ))}
         </div>
@@ -273,13 +289,16 @@ function KpiCard({ icon, label, value, color, sub, big }: {
   icon: React.ReactNode; label: string; value: string; color: string; sub?: string; big?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border/20 bg-surface-light p-4">
+    <div className="card-plugbet relative overflow-hidden p-4 transition-transform hover:-translate-y-0.5">
+      <span className={`absolute left-0 top-0 h-full w-[3px] bg-${color} opacity-60`} />
       <div className="flex items-center justify-between">
-        <p className="text-xs text-text-muted">{label}</p>
-        <span className={`text-${color}`}>{icon}</span>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">{label}</p>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-lg bg-${color}/15 text-${color}`}>
+          {icon}
+        </span>
       </div>
-      <p className={`mt-1 font-bold ${big ? 'text-2xl' : 'text-xl'} text-text`}>{value}</p>
-      {sub && <p className="mt-1 text-[11px] text-text-muted">{sub}</p>}
+      <p className={`hero-number mt-1 ${big ? 'text-2xl' : 'text-xl'} text-text`}>{value}</p>
+      {sub && <p className="mt-1 text-[11px] text-text-secondary">{sub}</p>}
     </div>
   );
 }

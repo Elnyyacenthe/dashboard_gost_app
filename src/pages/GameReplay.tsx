@@ -143,26 +143,34 @@ export default function GameReplay() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)}
-            className="rounded-lg border border-border/30 p-2 hover:bg-surface-lighter">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <Gamepad className="h-5 w-5 text-primary" />
-              <h1 className="text-xl font-bold text-text">Replay {events[0].game_type}</h1>
+      <div className="card-plugbet relative overflow-hidden p-5">
+        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => navigate(-1)} aria-label="Retour"
+              className="rounded-xl border border-border/40 p-2 text-text-secondary hover:border-primary/30 hover:text-text transition-colors">
+              <ArrowLeft className="h-4 w-4" strokeWidth={2.2} />
+            </button>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-primary">
+                Plugbet · Game replay
+              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <Gamepad className="h-5 w-5 text-primary" strokeWidth={2.2} />
+                <h1 className="hero-number text-xl text-text">Replay <span className="text-primary">{events[0].game_type}</span></h1>
+              </div>
+              <p className="mt-0.5 text-[10px] text-text-muted font-mono">{gameId}</p>
             </div>
-            <p className="text-xs text-text-muted font-mono">{gameId}</p>
           </div>
+          {anomalies.length > 0 && (
+            <div className="pulse-danger flex items-center gap-2 rounded-xl bg-danger/10 border border-danger/30 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-danger" />
+              <span className="text-xs font-bold uppercase tracking-wider text-danger">
+                {anomalies.length} anomalie{anomalies.length > 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
         </div>
-        {anomalies.length > 0 && (
-          <div className="flex items-center gap-2 rounded-xl bg-danger/10 border border-danger/30 px-3 py-2">
-            <AlertTriangle className="h-4 w-4 text-danger" />
-            <span className="text-sm text-danger font-semibold">{anomalies.length} anomalie(s) détectée(s)</span>
-          </div>
-        )}
       </div>
 
       {/* Stats */}
@@ -174,38 +182,39 @@ export default function GameReplay() {
       </div>
 
       {/* Timeline + control */}
-      <div className="rounded-2xl border border-border/30 bg-surface-light p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => setCursor(0)}
-            className="rounded-lg border border-border/30 p-2 hover:bg-surface-lighter" title="Début">
+      <div className="card-plugbet p-5">
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <button type="button" onClick={() => setCursor(0)} aria-label="Retour au début"
+            className="rounded-xl border border-border/40 p-2 text-text-secondary hover:border-primary/30 hover:text-text transition-colors" title="Début">
             <RotateCcw className="h-4 w-4" />
           </button>
-          <button onClick={() => setCursor(c => Math.max(0, c - 1))} disabled={cursor === 0}
-            className="rounded-lg border border-border/30 p-2 hover:bg-surface-lighter disabled:opacity-30">
+          <button type="button" onClick={() => setCursor(c => Math.max(0, c - 1))} disabled={cursor === 0} aria-label="Event précédent"
+            className="rounded-xl border border-border/40 p-2 text-text-secondary hover:border-primary/30 hover:text-text disabled:opacity-30 transition-colors">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button onClick={() => setPlaying(p => !p)}
-            className="rounded-lg bg-primary p-2 text-white hover:bg-primary-dark">
-            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          <button type="button" onClick={() => setPlaying(p => !p)} aria-label={playing ? 'Pause' : 'Lecture'}
+            className="rounded-xl bg-primary p-2 text-surface hover:bg-primary-light hover:shadow-[0_0_18px_rgba(0,230,118,0.4)] transition-all">
+            {playing ? <Pause className="h-4 w-4" strokeWidth={2.5} /> : <Play className="h-4 w-4" strokeWidth={2.5} />}
           </button>
-          <button onClick={() => setCursor(c => Math.min(events.length - 1, c + 1))} disabled={cursor >= events.length - 1}
-            className="rounded-lg border border-border/30 p-2 hover:bg-surface-lighter disabled:opacity-30">
+          <button type="button" onClick={() => setCursor(c => Math.min(events.length - 1, c + 1))} disabled={cursor >= events.length - 1} aria-label="Event suivant"
+            className="rounded-xl border border-border/40 p-2 text-text-secondary hover:border-primary/30 hover:text-text disabled:opacity-30 transition-colors">
             <ChevronRight className="h-4 w-4" />
           </button>
-          <select value={speed} onChange={e => setSpeed(Number(e.target.value) as 1 | 2 | 4)}
-            className="rounded-lg border border-border/30 bg-surface px-3 py-1.5 text-xs text-text">
-            <option value={1}>1x</option>
-            <option value={2}>2x</option>
-            <option value={4}>4x</option>
+          <select value={speed} onChange={e => setSpeed(Number(e.target.value) as 1 | 2 | 4)} aria-label="Vitesse de lecture"
+            className="rounded-xl border border-border/40 bg-surface/50 px-3 py-2 text-xs font-bold text-text">
+            <option value={1}>1×</option>
+            <option value={2}>2×</option>
+            <option value={4}>4×</option>
           </select>
-          <span className="ml-auto text-xs text-text-muted">
-            {cursor + 1} / {events.length} · {Math.round(elapsed)}s écoulées
+          <span className="ml-auto display-number text-xs text-text-secondary">
+            <span className="text-text">{cursor + 1}</span> / {events.length} · {Math.round(elapsed)}s
           </span>
         </div>
 
         {/* Slider */}
         <input
           type="range"
+          aria-label="Position dans la timeline"
           min={0}
           max={events.length - 1}
           value={cursor}
