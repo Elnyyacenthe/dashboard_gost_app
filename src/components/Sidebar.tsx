@@ -98,19 +98,21 @@ export default function Sidebar({ onSignOut, open = false, onClose }: SidebarPro
       )}
 
       <aside
-        className={`fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border/20 bg-surface-light transition-transform duration-300 ease-out lg:translate-x-0 ${
+        className={`sidebar-bg fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border/40 transition-transform duration-300 ease-out lg:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between gap-3 border-b border-border/20 px-6">
+      <div className="flex h-16 items-center justify-between gap-3 border-b border-border/40 px-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
-            <Dice5 className="h-5 w-5" />
+          <div className="logo-gradient flex h-10 w-10 items-center justify-center rounded-xl text-surface">
+            <Dice5 className="h-5 w-5" strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-text">GOST</h1>
-            <p className="text-xs text-text-muted -mt-0.5">Admin Panel</p>
+            <h1 className="text-base font-extrabold tracking-tight text-text">GOST</h1>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary -mt-0.5">
+              Admin Panel
+            </p>
           </div>
         </div>
         <button
@@ -124,38 +126,45 @@ export default function Sidebar({ onSignOut, open = false, onClose }: SidebarPro
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+              `group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? 'bg-primary/15 text-primary shadow-sm'
-                  : 'text-text-muted hover:bg-surface-lighter hover:text-text'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-text-secondary hover:bg-surface-lighter hover:text-text'
               }`
             }
           >
-            <item.icon className="h-5 w-5 shrink-0" />
-            <span className="flex-1">{item.label}</span>
-            {item.badge > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
-                {item.badge > 9 ? '9+' : item.badge}
-              </span>
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span className="active-indicator absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full" />
+                )}
+                <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                <span className="flex-1">{item.label}</span>
+                {item.badge > 0 && (
+                  <span className="badge-danger flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-extrabold text-white">
+                    {item.badge > 9 ? '9+' : item.badge}
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
         ))}
       </nav>
 
       {/* Logout */}
-      <div className="border-t border-border/20 p-3">
+      <div className="border-t border-border/40 p-3">
         <button
           type="button"
           onClick={onSignOut}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-danger transition-all duration-200 hover:bg-danger/10"
+          className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-danger transition-all duration-200 hover:bg-danger/10"
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-[18px] w-[18px]" strokeWidth={2} />
           Déconnexion
         </button>
       </div>

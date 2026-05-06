@@ -28,25 +28,28 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      {/* Background decoration */}
+    <div className="relative flex min-h-screen items-center justify-center px-4">
+      {/* Background decoration néon */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
+        <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-info/10 blur-[120px]" />
+        <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-[100px]" />
       </div>
 
       <div className="relative w-full max-w-md animate-fade-in">
         {/* Logo */}
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/25">
-            <Dice5 className="h-8 w-8 text-white" />
+        <div className="mb-10 flex flex-col items-center">
+          <div className="logo-gradient mb-5 flex h-16 w-16 items-center justify-center rounded-2xl">
+            <Dice5 className="h-8 w-8 text-surface" strokeWidth={2.5} />
           </div>
-          <h1 className="text-2xl font-bold text-text">GOST Admin</h1>
-          <p className="mt-1 text-sm text-text-muted">Connectez-vous pour accéder au dashboard</p>
+          <h1 className="hero-number text-3xl text-text">GOST <span className="text-primary">Admin</span></h1>
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-text-secondary">
+            Plugbet · Control center
+          </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-border/30 bg-surface-light p-8 shadow-xl">
+        <form onSubmit={handleSubmit} className="card-plugbet-elevated p-8 shadow-2xl">
           {error && (
             <div className="mb-4 rounded-xl bg-danger/10 border border-danger/20 px-4 py-3 text-sm text-danger">
               {error}
@@ -90,7 +93,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold uppercase tracking-wider text-surface transition-all duration-200 hover:bg-primary-light hover:shadow-[0_0_24px_rgba(0,230,118,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -104,8 +107,8 @@ export default function Login() {
           </div>
         </form>
 
-        <p className="mt-6 text-center text-xs text-text-muted/50">
-          GOST Gaming Platform — Admin Dashboard v1.0
+        <p className="mt-6 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted/60">
+          Plugbet Gaming Platform · Admin v1.0
         </p>
       </div>
     </div>
