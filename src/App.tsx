@@ -13,6 +13,8 @@ import AlertsPage from './pages/Alerts';
 import UserDetail from './pages/UserDetail';
 import GameReplay from './pages/GameReplay';
 import Replay from './pages/Replay';
+import Announcements from './pages/Announcements';
+import FinanceReport from './pages/FinanceReport';
 
 export default function App() {
   return (
@@ -31,7 +33,9 @@ export default function App() {
           <Route path="support" element={<SupportPage />} />
           <Route path="treasury" element={<TreasuryPage />} />
           <Route path="audit" element={<AuditPage />} />
+          <Route path="finance" element={<FinanceReport />} />
           <Route path="alerts" element={<AlertsPage />} />
+          <Route path="announcements" element={<Announcements />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
