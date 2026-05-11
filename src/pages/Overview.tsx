@@ -41,13 +41,13 @@ const chartBase = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: '#1e293b', borderColor: '#475569', borderWidth: 1,
-      titleColor: '#f1f5f9', bodyColor: '#94a3b8', cornerRadius: 12, padding: 12,
+      backgroundColor: '#0F172A', borderColor: '#1E293B', borderWidth: 1,
+      titleColor: '#F8FAFC', bodyColor: '#CBD5E1', cornerRadius: 8, padding: 10,
     },
   },
   scales: {
-    x: { grid: { color: 'rgba(71,85,105,0.2)' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
-    y: { grid: { color: 'rgba(71,85,105,0.2)' }, ticks: { color: '#94a3b8', font: { size: 11 } } },
+    x: { grid: { color: 'rgba(148, 163, 184, 0.15)' }, ticks: { color: '#64748B', font: { size: 11 } } },
+    y: { grid: { color: 'rgba(148, 163, 184, 0.15)' }, ticks: { color: '#64748B', font: { size: 11 } } },
   },
 };
 
@@ -175,60 +175,127 @@ export default function Overview() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-text">Overview</h1>
-        <p className="text-sm text-text-muted">Données réelles de ton application</p>
+      {/* ─── Hero header ────────────────────────────────────── */}
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary-dark">
+            Plugbet · Live data
+          </p>
+          <h1 className="hero-number mt-1 text-3xl text-slate-900">Overview</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Vue d'ensemble en temps réel — joueurs, coins, parties, rangs
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5">
+          <span className="live-dot h-2 w-2 rounded-full bg-primary-dark" />
+          <span className="text-xs font-bold uppercase tracking-wider text-primary-dark">
+            Live
+          </span>
+        </div>
       </div>
 
+      {/* ─── KPIs ─────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatsCard title="Total joueurs inscrits" value={(kpis?.total_players ?? 0).toLocaleString()} icon={<Users className="h-5 w-5" />} accent />
-        <StatsCard title="Actifs (7 derniers jours)" value={(kpis?.active_players_7d ?? 0).toLocaleString()} icon={<TrendingUp className="h-5 w-5" />}
-          change={kpis ? `${Math.round((kpis.active_players_7d / Math.max(kpis.total_players, 1)) * 100)}% du total` : ''} changeType="neutral" />
-        <StatsCard title="Coins en circulation" value={(kpis?.total_coins ?? 0).toLocaleString()} icon={<Coins className="h-5 w-5" />} />
-        <StatsCard title="Parties jouées (total)" value={(kpis?.total_games_played ?? 0).toLocaleString()} icon={<Gamepad2 className="h-5 w-5" />} />
-        <StatsCard title="Total victoires" value={(kpis?.total_wins ?? 0).toLocaleString()} icon={<Trophy className="h-5 w-5" />}
-          change={kpis?.total_games_played ? `${Math.round((kpis.total_wins / kpis.total_games_played) * 100)}% win rate global` : '—'} changeType="neutral" />
-        <StatsCard title="Rang le plus élevé atteint" value={kpis?.top_rank ?? 'N/A'} icon={<Star className="h-5 w-5" />} accent />
+        <StatsCard
+          title="Total joueurs inscrits"
+          value={(kpis?.total_players ?? 0).toLocaleString()}
+          icon={<Users className="h-5 w-5" />}
+          variant="green" accent
+        />
+        <StatsCard
+          title="Actifs (7 derniers jours)"
+          value={(kpis?.active_players_7d ?? 0).toLocaleString()}
+          icon={<TrendingUp className="h-5 w-5" />}
+          change={kpis ? `${Math.round((kpis.active_players_7d / Math.max(kpis.total_players, 1)) * 100)}% du total` : ''}
+          changeType="up"
+          variant="blue"
+        />
+        <StatsCard
+          title="Coins en circulation"
+          value={(kpis?.total_coins ?? 0).toLocaleString()}
+          icon={<Coins className="h-5 w-5" />}
+          variant="amber"
+        />
+        <StatsCard
+          title="Parties jouées (total)"
+          value={(kpis?.total_games_played ?? 0).toLocaleString()}
+          icon={<Gamepad2 className="h-5 w-5" />}
+          variant="violet"
+        />
+        <StatsCard
+          title="Total victoires"
+          value={(kpis?.total_wins ?? 0).toLocaleString()}
+          icon={<Trophy className="h-5 w-5" />}
+          change={kpis?.total_games_played ? `${Math.round((kpis.total_wins / kpis.total_games_played) * 100)}% win rate` : '—'}
+          changeType="up"
+          variant="rose"
+        />
+        <StatsCard
+          title="Rang le plus élevé"
+          value={kpis?.top_rank ?? 'N/A'}
+          icon={<Star className="h-5 w-5" />}
+          variant="cyan" accent
+        />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
-          <h3 className="mb-4 text-sm font-semibold text-text-muted">Distribution des rangs</h3>
+      {/* ─── Charts row ──────────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="exec-card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+              Distribution des rangs
+            </h3>
+            <span className="badge-info rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase">
+              {activeRanks.length} rangs
+            </span>
+          </div>
           <div className="h-64">
             {activeRanks.length > 0 ? <Bar data={rankChart} options={chartBase} /> : (
-              <div className="flex h-full items-center justify-center text-text-muted text-sm">Aucun joueur enregistré</div>
+              <div className="flex h-full items-center justify-center text-slate-400 text-sm">
+                Aucun joueur enregistré
+              </div>
             )}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
-          <h3 className="mb-4 text-sm font-semibold text-text-muted">Répartition des soldes de coins</h3>
+        <div className="exec-card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+              Répartition des soldes
+            </h3>
+            <span className="badge-primary rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase">
+              Coins
+            </span>
+          </div>
           <div className="h-64">
             <Line data={coinsChart} options={chartBase} />
           </div>
         </div>
       </div>
 
-      {/* ACTIVITÉ PAR JEU */}
+      {/* ─── Activité par jeu ────────────────────────────────── */}
       {gameStats.length > 0 && (
-        <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-text">Activité par jeu</h3>
-            <span className="ml-auto text-xs text-text-muted">{gameStats.length} jeux actifs</span>
+        <div className="exec-card p-6">
+          <div className="mb-5 flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary-dark" />
+            <h3 className="hero-number text-lg text-slate-900">Activité par jeu</h3>
+            <span className="ml-auto badge-primary rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase">
+              {gameStats.length} actifs
+            </span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {gameStats.map(g => {
               const meta = GAMES_META[g.game_type];
               return (
                 <div key={g.game_type}
-                  className="flex items-center gap-3 rounded-xl border border-border/20 bg-surface p-3"
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3 transition-all hover:border-primary/40 hover:bg-white"
                   style={{ borderLeftWidth: 3, borderLeftColor: g.color }}>
                   <span className="text-2xl">{meta?.emoji ?? '🎮'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-text truncate">{g.label}</p>
-                    <p className="text-xs text-text-muted">
-                      {g.rounds} parties • {g.bets_in.toLocaleString()} coins misés
+                    <p className="font-semibold text-slate-900 truncate">{g.label}</p>
+                    <p className="text-[11px] text-slate-500">
+                      <span className="font-bold text-primary-dark">{g.rounds}</span> parties ·{' '}
+                      <span className="font-bold text-amber-600">{g.bets_in.toLocaleString()}</span> coins
                     </p>
                   </div>
                 </div>
@@ -238,37 +305,53 @@ export default function Overview() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
-        <h3 className="mb-4 text-lg font-semibold text-text">Top 5 joueurs par XP</h3>
+      {/* ─── Top 5 joueurs par XP ────────────────────────────── */}
+      <div className="exec-card p-6">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="hero-number text-lg text-slate-900">Top 5 joueurs par XP</h3>
+          <span className="badge-warning rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase">
+            Leaderboard
+          </span>
+        </div>
         {topPlayers.length === 0 ? (
-          <p className="py-8 text-center text-text-muted">Aucun joueur enregistré pour l'instant.</p>
+          <p className="py-8 text-center text-sm text-slate-500">Aucun joueur enregistré pour l'instant.</p>
         ) : (
-          <div className="space-y-2">
-            {topPlayers.map((p, idx) => (
-              <div key={p.id} className="flex items-center justify-between rounded-xl p-3 transition-colors hover:bg-surface-lighter">
-                <div className="flex items-center gap-4">
-                  <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                    idx === 0 ? 'bg-yellow-500/20 text-yellow-400' :
-                    idx === 1 ? 'bg-gray-300/20 text-gray-300' :
-                    idx === 2 ? 'bg-amber-600/20 text-amber-500' : 'bg-surface-lighter text-text-muted'
-                  }`}>{idx + 1}</span>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
-                    {(p.username ?? '?').charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-medium text-text">{p.username ?? 'Joueur'}</p>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-medium ${RANK_TEXT[p.rank ?? 'Bronze'] ?? 'text-slate-400'}`}>{p.rank ?? 'Bronze'}</span>
-                      <span className="text-xs text-text-muted">{p.games_played ?? 0} parties · {p.total_wins ?? 0} victoires</span>
+          <div className="space-y-1.5">
+            {topPlayers.map((p, idx) => {
+              const podium =
+                idx === 0 ? { bg: 'bg-amber-100 text-amber-700 border-amber-200', medal: '🥇' } :
+                idx === 1 ? { bg: 'bg-slate-100 text-slate-600 border-slate-200', medal: '🥈' } :
+                idx === 2 ? { bg: 'bg-orange-100 text-orange-700 border-orange-200', medal: '🥉' } :
+                { bg: 'bg-slate-50 text-slate-500 border-slate-200', medal: '' };
+              return (
+                <div key={p.id}
+                  className="group flex items-center justify-between gap-3 rounded-xl border border-transparent p-3 transition-all hover:border-slate-200 hover:bg-slate-50">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-extrabold ${podium.bg}`}>
+                      {podium.medal || `#${idx + 1}`}
+                    </span>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#7CCD3F] to-[#5FAF2D] text-sm font-extrabold text-white">
+                      {(p.username ?? '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate">{p.username ?? 'Joueur'}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[11px] font-bold ${RANK_TEXT[p.rank ?? 'Bronze'] ?? 'text-slate-400'}`}>
+                          {p.rank ?? 'Bronze'}
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          {p.games_played ?? 0} parties · {p.total_wins ?? 0} victoires
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  <div className="text-right">
+                    <p className="display-number text-base text-primary-dark">{(p.xp ?? 0).toLocaleString()} XP</p>
+                    <p className="text-[11px] text-slate-500">{(p.coins ?? 0).toLocaleString()} coins</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-primary">{(p.xp ?? 0).toLocaleString()} XP</p>
-                  <p className="text-xs text-text-muted">{(p.coins ?? 0).toLocaleString()} coins</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

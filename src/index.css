@@ -1,90 +1,213 @@
 @import "tailwindcss";
 
+/* ============================================================
+   PLUGBET DASHBOARD — Light theme corporate + vert PlugBet
+   Palette extraite du logo officiel (assets/icon/app_icon.png)
+   ============================================================ */
+
 @theme {
-  --color-primary: #f97316;
-  --color-primary-light: #fb923c;
-  --color-primary-dark: #ea580c;
-  --color-surface: #0f172a;
-  --color-surface-light: #1e293b;
-  --color-surface-lighter: #334155;
-  --color-border: #475569;
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-success: #22c55e;
-  --color-danger: #ef4444;
-  --color-warning: #eab308;
-  --color-info: #3b82f6;
+  /* === Primary : vert PlugBet (brush du logo) === */
+  --color-primary: #7CCD3F;
+  --color-primary-light: #88D846;
+  --color-primary-dark: #5FAF2D;
+
+  /* === Surfaces : light corporate === */
+  --color-surface: #F7F8FA;          /* main app bg */
+  --color-surface-light: #FFFFFF;    /* card bg */
+  --color-surface-lighter: #F1F5F9;  /* hover / subtle */
+  --color-surface-elevated: #FFFFFF;
+
+  /* === Sidebar : DARK gris carbone (cohérent avec Login brand panel) === */
+  --color-sidebar: #3F4045;
+  --color-sidebar-dark: #2A2B2F;
+
+  /* === Bordures et dividers === */
+  --color-border: #E2E8F0;           /* slate-200 */
+  --color-border-light: #CBD5E1;     /* slate-300 */
+
+  /* === Texte === */
+  --color-text: #0F172A;             /* slate-900 */
+  --color-text-secondary: #475569;   /* slate-600 */
+  --color-text-muted: #94A3B8;       /* slate-400 */
+
+  /* === Status colors === */
+  --color-success: #10B981;          /* emerald-500 */
+  --color-danger:  #EF4444;          /* red-500 */
+  --color-warning: #F59E0B;          /* amber-500 */
+  --color-info:    #3B82F6;          /* blue-500 */
+  --color-purple:  #8B5CF6;          /* violet-500 */
+  --color-orange:  #F97316;          /* orange-500 */
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-surface-lighter) var(--color-surface);
+  scrollbar-color: #CBD5E1 transparent;
 }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
 body {
   background-color: var(--color-surface);
   color: var(--color-text);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-.animate-fade-in {
-  animation: fade-in 0.4s ease-out;
-}
+.animate-fade-in { animation: fade-in 0.4s ease-out; }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
-  50% { box-shadow: 0 0 20px 4px rgba(249, 115, 22, 0.15); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 205, 63, 0.4); }
+  50% { box-shadow: 0 0 20px 4px rgba(124, 205, 63, 0.15); }
 }
+.pulse-glow { animation: pulse-glow 2.5s infinite; }
 
-.pulse-glow {
-  animation: pulse-glow 2s infinite;
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.25); }
 }
+.live-dot { animation: live-pulse 1.5s ease-in-out infinite; }
 
 /* ============================================================
-   LOGIN PAGE — Plugbet brand (scope local, n'impacte pas le reste)
-   Palette extraite du logo officiel.
+   COMPONENT UTILITIES — Executive dashboard style
    ============================================================ */
 
+/* Cards blanches premium */
+.exec-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.exec-card-hover {
+  transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+}
+.exec-card-hover:hover {
+  box-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.08);
+  border-color: #CBD5E1;
+}
+
+/* Hero numbers typography */
+.hero-number {
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-feature-settings: 'tnum', 'lnum';
+  font-variant-numeric: tabular-nums;
+}
+.display-number {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-feature-settings: 'tnum', 'lnum';
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sidebar (dark) */
+.exec-sidebar {
+  background: linear-gradient(180deg, #3F4045 0%, #2A2B2F 100%);
+}
+
+.exec-sidebar-item-active {
+  background: rgba(124, 205, 63, 0.15);
+  color: #88D846;
+}
+.exec-sidebar-item-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 4px 4px 0;
+  background: #7CCD3F;
+  box-shadow: 0 0 12px rgba(124, 205, 63, 0.6);
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, #7CCD3F, #5FAF2D);
+  color: white;
+  font-weight: 700;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(124, 205, 63, 0.3);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #88D846, #66BB31);
+  box-shadow: 0 8px 24px -8px rgba(124, 205, 63, 0.5);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled {
+  background: #94A3B8;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: white;
+  border: 1px solid #E2E8F0;
+  color: #475569;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.btn-ghost:hover {
+  border-color: #CBD5E1;
+  background: #F8FAFC;
+  color: #0F172A;
+}
+
+/* Badges */
+.badge-success { background: rgba(16, 185, 129, 0.12); color: #047857; }
+.badge-danger  { background: rgba(239, 68, 68, 0.12);  color: #B91C1C; }
+.badge-warning { background: rgba(245, 158, 11, 0.12); color: #B45309; }
+.badge-info    { background: rgba(59, 130, 246, 0.12); color: #1D4ED8; }
+.badge-primary { background: rgba(124, 205, 63, 0.15); color: #4D8C25; }
+.badge-neutral { background: #F1F5F9; color: #475569; }
+
+/* KPI accent strip (vertical) */
+.kpi-strip-green  { box-shadow: inset 3px 0 0 #7CCD3F; }
+.kpi-strip-blue   { box-shadow: inset 3px 0 0 #3B82F6; }
+.kpi-strip-amber  { box-shadow: inset 3px 0 0 #F59E0B; }
+.kpi-strip-violet { box-shadow: inset 3px 0 0 #8B5CF6; }
+.kpi-strip-rose   { box-shadow: inset 3px 0 0 #EF4444; }
+.kpi-strip-cyan   { box-shadow: inset 3px 0 0 #06B6D4; }
+
+/* ============================================================
+   LOGIN PAGE — Plugbet brand (scope local)
+   ============================================================ */
 .login-brand-panel {
   background: linear-gradient(160deg, #3F4045 0%, #2A2B2F 100%);
 }
-
-.login-form-bg {
-  background: #F7F8FA;
-}
-
+.login-form-bg { background: #F7F8FA; }
 .login-dot-pattern {
   background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0);
   background-size: 28px 28px;
   opacity: 0.07;
 }
-
-.login-orb-tl {
-  background: rgba(124, 205, 63, 0.25);
-}
-
-.login-orb-br {
-  background: rgba(124, 205, 63, 0.12);
-}
-
+.login-orb-tl { background: rgba(124, 205, 63, 0.25); }
+.login-orb-br { background: rgba(124, 205, 63, 0.12); }
 .login-accent-green     { color: #7CCD3F; }
 .login-accent-green-dk  { color: #5FAF2D; }
-
 .login-bullet-green {
   background: #7CCD3F;
   box-shadow: 0 0 8px #7CCD3F;
 }
-
 .login-mobile-logo-bg {
   background: #3F4045;
   padding: 8px 16px;
 }
-
 .login-input {
   transition: all 0.15s ease;
 }
@@ -92,7 +215,6 @@ body {
   border-color: #7CCD3F;
   box-shadow: 0 0 0 4px rgba(124, 205, 63, 0.15);
 }
-
 .login-cta {
   background: linear-gradient(135deg, #7CCD3F, #5FAF2D);
   box-shadow: 0 8px 24px -8px rgba(124, 205, 63, 0.5), 0 0 0 1px #5FAF2D;

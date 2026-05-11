@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Profile } from '../../types';
+import { can, type Permission, type Role } from '../permissions';
 
 interface AuthState {
   user: User | null;
@@ -10,6 +11,7 @@ interface AuthState {
   loading: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isModerator: boolean;
 }
 
 export function useAuth() {
@@ -20,6 +22,7 @@ export function useAuth() {
     loading: true,
     isAdmin: false,
     isSuperAdmin: false,
+    isModerator: false,
   });
 
   // Cache en mémoire : évite de re-fetcher si déjà chargé
@@ -63,13 +66,14 @@ export function useAuth() {
               loading: false,
               isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
               isSuperAdmin: profile?.role === 'super_admin',
+              isModerator: profile?.role === 'moderator',
             });
           } else {
-            setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false });
+            setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
           }
         } else if (event === 'SIGNED_OUT') {
           profileCache.current.clear();
-          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false });
+          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Pas besoin de re-fetcher le profil, juste mettre à jour la session
           setAuthState(prev => ({ ...prev, session, isSuperAdmin: (prev.profile?.role ?? '') === 'super_admin' }));
@@ -96,9 +100,9 @@ export function useAuth() {
       );
     }
 
-    if (profile.role !== 'admin' && profile.role !== 'super_admin') {
+    if (profile.role !== 'admin' && profile.role !== 'super_admin' && profile.role !== 'moderator') {
       await supabase.auth.signOut();
-      throw new Error(`Accès refusé. Rôle actuel : "${profile.role}". Rôle requis : "admin" ou "super_admin".`);
+      throw new Error(`Accès refusé. Rôle actuel : "${profile.role}". Rôle requis : admin, super_admin ou moderator.`);
     }
 
     return { user: data.user, profile };
@@ -108,5 +112,13 @@ export function useAuth() {
     await supabase.auth.signOut();
   };
 
-  return { ...authState, signIn, signOut };
+  /**
+   * Vérifie si l'utilisateur courant a une permission donnée.
+   * Returns false si non authentifié ou role inconnu.
+   */
+  const hasPerm = useCallback((perm: Permission): boolean => {
+    return can(authState.profile?.role as Role | undefined, perm);
+  }, [authState.profile?.role]);
+
+  return { ...authState, signIn, signOut, hasPerm };
 }
