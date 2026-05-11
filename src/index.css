@@ -44,3 +44,64 @@ body {
 .pulse-glow {
   animation: pulse-glow 2s infinite;
 }
+
+/* ============================================================
+   LOGIN PAGE — Plugbet brand (scope local, n'impacte pas le reste)
+   Palette extraite du logo officiel.
+   ============================================================ */
+
+.login-brand-panel {
+  background: linear-gradient(160deg, #3F4045 0%, #2A2B2F 100%);
+}
+
+.login-form-bg {
+  background: #F7F8FA;
+}
+
+.login-dot-pattern {
+  background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0);
+  background-size: 28px 28px;
+  opacity: 0.07;
+}
+
+.login-orb-tl {
+  background: rgba(124, 205, 63, 0.25);
+}
+
+.login-orb-br {
+  background: rgba(124, 205, 63, 0.12);
+}
+
+.login-accent-green     { color: #7CCD3F; }
+.login-accent-green-dk  { color: #5FAF2D; }
+
+.login-bullet-green {
+  background: #7CCD3F;
+  box-shadow: 0 0 8px #7CCD3F;
+}
+
+.login-mobile-logo-bg {
+  background: #3F4045;
+  padding: 8px 16px;
+}
+
+.login-input {
+  transition: all 0.15s ease;
+}
+.login-input:focus {
+  border-color: #7CCD3F;
+  box-shadow: 0 0 0 4px rgba(124, 205, 63, 0.15);
+}
+
+.login-cta {
+  background: linear-gradient(135deg, #7CCD3F, #5FAF2D);
+  box-shadow: 0 8px 24px -8px rgba(124, 205, 63, 0.5), 0 0 0 1px #5FAF2D;
+}
+.login-cta:hover:not(:disabled) {
+  background: linear-gradient(135deg, #88D846, #66BB31);
+  box-shadow: 0 10px 32px -8px rgba(124, 205, 63, 0.6), 0 0 0 1px #5FAF2D;
+}
+.login-cta:disabled {
+  background: #5FAF2D;
+  box-shadow: none;
+}

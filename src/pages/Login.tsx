@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dice5, Eye, EyeOff, Loader2 } from 'lucide-react';
+import {
+  Eye, EyeOff, Loader2, AlertCircle,
+  TrendingUp, ShieldCheck, BarChart3, Activity,
+} from 'lucide-react';
 import { useAuth } from '../lib/hooks/useAuth';
 
 export default function Login() {
@@ -16,7 +19,6 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       await signIn(email, password);
       navigate('/dashboard/overview', { replace: true });
@@ -28,46 +30,118 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      {/* Background decoration */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
-      </div>
+    <div className="flex min-h-screen">
+      {/* ─── PANEL GAUCHE — BRAND ─────────────────────────────── */}
+      <aside className="login-brand-panel relative hidden flex-col justify-between overflow-hidden p-10 lg:flex lg:w-[44%] xl:w-[40%]">
+        {/* Decorative dots pattern */}
+        <div className="login-dot-pattern pointer-events-none absolute inset-0" />
+        {/* Green glow orbs */}
+        <div className="login-orb-tl pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full blur-3xl" />
+        <div className="login-orb-br pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full blur-3xl" />
 
-      <div className="relative w-full max-w-md animate-fade-in">
-        {/* Logo */}
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/25">
-            <Dice5 className="h-8 w-8 text-white" />
+        {/* Top : small brand tag */}
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 backdrop-blur-sm px-3 py-1.5">
+            <span className="login-bullet-green h-1.5 w-1.5 rounded-full animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/80">
+              Admin Console
+            </span>
           </div>
-          <h1 className="text-2xl font-bold text-text">GOST Admin</h1>
-          <p className="mt-1 text-sm text-text-muted">Connectez-vous pour accéder au dashboard</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-border/30 bg-surface-light p-8 shadow-xl">
-          {error && (
-            <div className="mb-4 rounded-xl bg-danger/10 border border-danger/20 px-4 py-3 text-sm text-danger">
-              {error}
-            </div>
-          )}
+        {/* Middle : LOGO + tagline */}
+        <div className="relative">
+          <img
+            src="/plugbet-logo.png"
+            alt="Plugbet"
+            className="mb-8 h-44 w-auto object-contain -ml-6 select-none drop-shadow-2xl"
+            draggable={false}
+          />
 
-          <div className="space-y-5">
+          <h2 className="text-3xl font-bold leading-tight text-white tracking-tight max-w-md">
+            Pilote ta plateforme
+            <br />
+            de jeu en <span className="login-accent-green">temps réel</span>.
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-white/65">
+            Joueurs, transactions Mobile Money, parties, alertes anti-fraude,
+            comptabilité — tout est centralisé dans une seule console
+            professionnelle.
+          </p>
+
+          {/* Mini KPI grid */}
+          <div className="mt-8 grid grid-cols-2 gap-3 max-w-md">
+            <KpiTile icon={<Activity className="h-3.5 w-3.5" />} label="Live" value="23" sub="joueurs actifs" />
+            <KpiTile icon={<TrendingUp className="h-3.5 w-3.5" />} label="Aujourd'hui" value="+109" sub="parties jouées" />
+            <KpiTile icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Sécurité" value="100%" sub="comptes audités" />
+            <KpiTile icon={<BarChart3 className="h-3.5 w-3.5" />} label="Caisses" value="✓" sub="zero-sum vérifié" />
+          </div>
+        </div>
+
+        {/* Bottom : footer */}
+        <div className="relative flex items-center justify-between text-[11px] text-white/45">
+          <div className="flex items-center gap-2">
+            <span className="login-bullet-green h-1.5 w-1.5 rounded-full" />
+            Système opérationnel
+          </div>
+          <span>Plugbet · v1.0</span>
+        </div>
+      </aside>
+
+      {/* ─── PANEL DROIT — FORM ─────────────────────────────────── */}
+      <main className="login-form-bg flex flex-1 items-center justify-center px-6 py-12 lg:px-16">
+        <div className="w-full max-w-md animate-fade-in">
+          {/* Mobile-only logo */}
+          <div className="mb-10 lg:hidden">
+            <img
+              src="/plugbet-logo.png"
+              alt="Plugbet"
+              className="login-mobile-logo-bg h-20 w-auto object-contain rounded-2xl"
+              draggable={false}
+            />
+          </div>
+
+          <div className="mb-8">
+            <p className="login-accent-green-dk text-[11px] font-bold uppercase tracking-[0.25em]">
+              Connexion sécurisée
+            </p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
+              Bon retour 👋
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Entre tes identifiants pour accéder au dashboard administrateur.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text-muted">Email</label>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                Email
+              </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@gost.app"
-                className="w-full rounded-xl border border-border/30 bg-surface px-4 py-3 text-sm text-text placeholder:text-text-muted/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                placeholder="admin@plugbet.app"
+                className="login-input w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text-muted">Mot de passe</label>
+              <label className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-700">
+                <span>Mot de passe</span>
+                <button type="button" className="login-accent-green-dk font-semibold hover:underline">
+                  Mot de passe oublié ?
+                </button>
+              </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -75,12 +149,13 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-border/30 bg-surface px-4 py-3 pr-11 text-sm text-text placeholder:text-text-muted/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                  className="login-input w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition-colors"
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -90,24 +165,43 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-primary-dark hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="login-cta flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all duration-200 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Connexion...
+                  Connexion en cours...
                 </>
               ) : (
                 'Se connecter'
               )}
             </button>
-          </div>
-        </form>
+          </form>
 
-        <p className="mt-6 text-center text-xs text-text-muted/50">
-          GOST Gaming Platform — Admin Dashboard v1.0
-        </p>
+          <p className="mt-10 text-center text-xs text-slate-400">
+            Plugbet Gaming Platform · Console v1.0
+          </p>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ─── Sub-component : KPI tile dans le panel gauche ──
+function KpiTile({
+  icon, label, value, sub,
+}: {
+  icon: React.ReactNode; label: string; value: string; sub: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white/[0.06] backdrop-blur-sm border border-white/10 p-3.5">
+      <div className="flex items-center gap-1.5 text-white/55 text-[10px] font-bold uppercase tracking-wider">
+        {icon} {label}
       </div>
+      <p className="mt-1.5 text-2xl font-extrabold text-white tabular-nums tracking-tight">
+        {value}
+      </p>
+      <p className="text-[11px] text-white/45">{sub}</p>
     </div>
   );
 }
