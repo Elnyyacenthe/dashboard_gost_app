@@ -40,7 +40,7 @@ interface WalletEntry {
   metadata: Record<string, unknown> | null;
 }
 
-type Responsible = 'OK' | 'FREEMOPAY' | 'CAISSE_INTERNE' | 'USER' | 'INVESTIGATE';
+type Responsible = 'OK' | 'FREEMOPAY' | 'CAISSE_INTERNE' | 'USER' | 'INVESTIGATE' | 'SYSTEM';
 
 interface EnrichedTx extends FreemoTx {
   username?: string | null;
@@ -57,7 +57,27 @@ interface EnrichedTx extends FreemoTx {
 // DIAGNOSTIC ENGINE
 // ============================================================
 
+function isSystemTransaction(tx: FreemoTx): boolean {
+  return (
+    tx.reference?.startsWith('SYSTEM_') ||
+    tx.payer_or_receiver === 'system'
+  );
+}
+
 function diagnose(tx: FreemoTx, walletEntry: WalletEntry | null | undefined): EnrichedTx['diagnostic'] {
+  // ==== TRANSACTION SYSTEME INTERNE ====
+  // Détection : reference SYSTEM_* OU tel = 'system'
+  // Ces transactions n'ont JAMAIS transité par Freemopay (callback_data = NULL).
+  // Elles viennent de seed/reconciliation interne. Ne PAS contacter Freemopay.
+  if (isSystemTransaction(tx)) {
+    return {
+      issue: '⚪ Transaction système interne (pré-ledger / réconciliation)',
+      severity: 'info',
+      responsible: 'SYSTEM',
+      action: 'NE PAS contacter Freemopay — c\'est une opération interne, pas un vrai paiement',
+    };
+  }
+
   const ageHours = (Date.now() - new Date(tx.created_at).getTime()) / 3600000;
 
   // ==== DEPOSITS ====
@@ -179,6 +199,7 @@ const respIcons: Record<Responsible, React.ReactNode> = {
   CAISSE_INTERNE: <Building2 className="h-4 w-4" />,
   USER: <User className="h-4 w-4" />,
   INVESTIGATE: <AlertCircle className="h-4 w-4" />,
+  SYSTEM: <Building2 className="h-4 w-4" />,
 };
 
 const respLabels: Record<Responsible, string> = {
@@ -187,6 +208,7 @@ const respLabels: Record<Responsible, string> = {
   CAISSE_INTERNE: 'Caisse interne',
   USER: 'Contacter le user',
   INVESTIGATE: 'À investiguer',
+  SYSTEM: 'Système interne',
 };
 
 const respColors: Record<Responsible, string> = {
@@ -195,6 +217,7 @@ const respColors: Record<Responsible, string> = {
   CAISSE_INTERNE: 'text-warning',
   USER: 'text-primary',
   INVESTIGATE: 'text-danger',
+  SYSTEM: 'text-text-muted',
 };
 
 export default function FinanceReportPage() {
@@ -326,8 +349,8 @@ export default function FinanceReportPage() {
 
   // Stats par responsable
   const stats = useMemo(() => {
-    const byResp = { OK: 0, FREEMOPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0 };
-    const amounts = { OK: 0, FREEMOPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0 };
+    const byResp: Record<Responsible, number> = { OK: 0, FREEMOPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0, SYSTEM: 0 };
+    const amounts: Record<Responsible, number> = { OK: 0, FREEMOPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0, SYSTEM: 0 };
     txs.forEach(t => {
       byResp[t.diagnostic.responsible]++;
       amounts[t.diagnostic.responsible] += t.amount;
@@ -464,7 +487,7 @@ export default function FinanceReportPage() {
 
       {/* Stats par responsable */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {(['OK', 'FREEMOPAY', 'CAISSE_INTERNE', 'USER', 'INVESTIGATE'] as Responsible[]).map(r => (
+        {(['OK', 'FREEMOPAY', 'CAISSE_INTERNE', 'USER', 'INVESTIGATE', 'SYSTEM'] as Responsible[]).map(r => (
           <button
             key={r}
             onClick={() => setRespFilter(respFilter === r ? 'all' : r)}
@@ -548,12 +571,19 @@ export default function FinanceReportPage() {
                       {format(new Date(tx.created_at), 'dd/MM HH:mm', { locale: fr })}
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        isDeposit ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'
-                      }`}>
-                        {isDeposit ? <ArrowDownCircle className="h-3 w-3" /> : <ArrowUpCircle className="h-3 w-3" />}
-                        {isDeposit ? 'DÉPÔT' : 'RETRAIT'}
-                      </span>
+                      {isSystemTransaction(tx) ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                          <Building2 className="h-3 w-3" />
+                          SYSTÈME
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          isDeposit ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'
+                        }`}>
+                          {isDeposit ? <ArrowDownCircle className="h-3 w-3" /> : <ArrowUpCircle className="h-3 w-3" />}
+                          {isDeposit ? 'DÉPÔT' : 'RETRAIT'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 text-text font-medium">{tx.username ?? tx.user_id.slice(0, 8)}</td>
                     <td className="px-3 py-2.5 text-xs text-text-muted font-mono">{tx.payer_or_receiver ?? '—'}</td>
@@ -775,6 +805,33 @@ function TransactionDetailModal({
         </div>
 
         <div className="p-6 space-y-5">
+          {/* ── BANNIÈRE SYSTÈME (si transaction interne) ── */}
+          {isSystemTransaction(tx) && (
+            <div className="rounded-xl border-2 border-slate-300 bg-slate-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
+                  <Building2 className="h-5 w-5" strokeWidth={2.5} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Transaction système interne
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    Cette transaction n'a JAMAIS transité par Freemopay
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                    Elle vient d'une opération interne (réconciliation initiale du ledger,
+                    seed d'opening balance ou bonus système). Le téléphone <code className="rounded bg-white px-1">{tx.payer_or_receiver}</code> et
+                    la référence <code className="rounded bg-white px-1">{tx.reference}</code> sont des marqueurs internes.
+                  </p>
+                  <p className="mt-2 text-xs font-bold text-slate-700">
+                    ⚠️ NE PAS contacter Freemopay — ils ne connaissent pas cette transaction.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action message */}
           {actionMsg && (
             <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${

@@ -96,6 +96,11 @@ interface TimelineEvent {
 
 type Period = '24h' | '7d' | '30d' | '90d' | 'all';
 
+// Détection des transactions système internes (non Freemopay)
+function isSystemTx(tx: FreemoTx): boolean {
+  return tx.reference?.startsWith('SYSTEM_') || tx.payer_or_receiver === 'system';
+}
+
 const PERIOD_HOURS: Record<Period, number | null> = {
   '24h': 24,
   '7d': 24 * 7,
@@ -269,12 +274,16 @@ export default function CashflowPage() {
     return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [freemoTxs, movements, usernames]);
 
-  // ─── KPIs période ──
+  // ─── Séparation Mobile Money réel vs Système interne ──
+  const realFreemoTxs = useMemo(() => freemoTxs.filter(t => !isSystemTx(t)), [freemoTxs]);
+  const systemTxs = useMemo(() => freemoTxs.filter(t => isSystemTx(t)), [freemoTxs]);
+
+  // ─── KPIs période (UNIQUEMENT cash réel Mobile Money) ──
   const stats = useMemo(() => {
-    const deposits = freemoTxs
+    const deposits = realFreemoTxs
       .filter(t => t.transaction_type === 'DEPOSIT')
       .reduce((s, t) => s + t.amount, 0);
-    const withdrawals = freemoTxs
+    const withdrawals = realFreemoTxs
       .filter(t => t.transaction_type === 'WITHDRAW')
       .reduce((s, t) => s + t.amount, 0);
 
@@ -293,23 +302,28 @@ export default function CashflowPage() {
     }
     const grossProfit = bets - payouts - refunds;
 
+    // Stats système (coins non couverts par du cash réel)
+    const systemTotal = systemTxs.reduce((s, t) => s + t.amount, 0);
+
     return {
       deposits, withdrawals, commissions, payouts, bets, refunds, grossProfit,
       netCash: deposits - withdrawals,
-      depositCount: freemoTxs.filter(t => t.transaction_type === 'DEPOSIT').length,
-      withdrawCount: freemoTxs.filter(t => t.transaction_type === 'WITHDRAW').length,
+      depositCount: realFreemoTxs.filter(t => t.transaction_type === 'DEPOSIT').length,
+      withdrawCount: realFreemoTxs.filter(t => t.transaction_type === 'WITHDRAW').length,
+      systemTotal,
+      systemCount: systemTxs.length,
     };
-  }, [freemoTxs, movements]);
+  }, [realFreemoTxs, systemTxs, movements]);
 
   // ─── Évolution caisse cash cumulée (running balance) ──
+  // Uniquement transactions Mobile Money RÉELLES (pas les SYSTEM_*)
   const cashEvolutionData = useMemo(() => {
-    // 1 point par event MM, running balance
     let running = 0;
     const points: { x: string; y: number }[] = [];
     const labels: string[] = [];
     const dataset: number[] = [];
 
-    for (const tx of freemoTxs) {
+    for (const tx of realFreemoTxs) {
       running += tx.transaction_type === 'DEPOSIT' ? tx.amount : -tx.amount;
       labels.push(format(new Date(tx.created_at), 'dd MMM HH:mm', { locale: fr }));
       dataset.push(running);
@@ -327,13 +341,14 @@ export default function CashflowPage() {
         pointHoverBackgroundColor: '#7CCD3F',
       }],
     };
-  }, [freemoTxs]);
+  }, [realFreemoTxs]);
 
   // ─── Flux quotidien : deposits vs withdrawals stacked ──
+  // Uniquement cash réel (exclut SYSTEM_*)
   const dailyFlowData = useMemo(() => {
     const byDay = new Map<string, { dep: number; wd: number }>();
 
-    for (const tx of freemoTxs) {
+    for (const tx of realFreemoTxs) {
       const day = format(startOfDay(new Date(tx.created_at)), 'dd MMM', { locale: fr });
       if (!byDay.has(day)) byDay.set(day, { dep: 0, wd: 0 });
       const slot = byDay.get(day)!;
@@ -519,7 +534,37 @@ export default function CashflowPage() {
             suspectDeposits={suspectDeposits}
           />
 
-          {/* ─── KPIs ────────────────────────────────────────── */}
+          {/* ─── COINS HÉRITAGE (transactions SYSTEM_*) ──────── */}
+          {stats.systemCount > 0 && (
+            <div className="rounded-2xl border-2 border-slate-300 bg-slate-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
+                  <Activity className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    Coins héritage (non couverts par cash réel)
+                  </p>
+                  <p className="mt-1 text-2xl font-extrabold text-slate-900">
+                    {stats.systemTotal.toLocaleString()} coins
+                    <span className="ml-2 text-sm font-semibold text-slate-500">
+                      sur {stats.systemCount} transaction{stats.systemCount > 1 ? 's' : ''} SYSTEM
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                    Ces coins existent dans le système mais ne proviennent <strong>pas</strong> d'un dépôt Mobile Money.
+                    Ce sont des opening balance / réconciliation initiale faites lors du déploiement du ledger.
+                    Ils sont <strong>exclus</strong> des KPIs cash réel ci-dessous pour ne pas embrouiller la comptabilité.
+                  </p>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    Pour <strong>les supprimer définitivement</strong>, exécuter <code className="rounded bg-white px-1 text-primary-dark">supabase_remove_system_openings.sql</code> dans Supabase SQL Editor.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── KPIs (Mobile Money RÉEL uniquement) ─────────── */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               icon={<ArrowDownCircle className="h-5 w-5" />}
