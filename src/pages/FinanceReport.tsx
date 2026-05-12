@@ -661,7 +661,7 @@ export default function FinanceReportPage() {
         </div>
         <p className="pt-2 border-t border-border/20">
           <strong className="text-text">Lien rapide</strong> :
-          <a href="https://app.freemopay.com" target="_blank" rel="noreferrer"
+          <a href="https://app.freemopay.com" target="_blank" rel="noopener noreferrer"
              className="ml-2 inline-flex items-center gap-1 text-info hover:underline">
             Dashboard Freemopay <ExternalLink className="h-3 w-3" />
           </a>
