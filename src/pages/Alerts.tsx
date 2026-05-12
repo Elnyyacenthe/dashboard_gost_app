@@ -118,21 +118,40 @@ export default function AlertsPage() {
   const runScan = async () => {
     setScanning(true);
     setScanResult(null);
-    // Cora fraud scan (la fonction Ludo v2 alimente automatiquement via triggers)
-    const { data: coraScan, error: coraErr } = await supabase.rpc('cora_scan_fraud_patterns');
-    let total = (coraScan as number) ?? 0;
+    let total = 0;
+    const errors: string[] = [];
 
-    // Optionnel : ancienne RPC fraud (si elle existe encore)
-    const { data: oldScan } = await supabase.rpc('scan_for_fraud_patterns');
-    if (typeof oldScan === 'number') total += oldScan;
+    // 1) Scan fraud patterns (winrate, large_winnings, frequent_withdrawals…)
+    // Préfère v2 si dispo (inclut new_account + no_play_high_balance), fallback v1
+    const v2Scan = await supabase.rpc('scan_for_fraud_patterns_v2');
+    let scan = v2Scan;
+    if (v2Scan.error) {
+      scan = await supabase.rpc('scan_for_fraud_patterns');
+    }
+    if (scan.error) {
+      errors.push(scan.error.message);
+    } else if (typeof scan.data === 'number') {
+      total += scan.data;
+    }
 
-    // Manual reconciliation (peut générer money_imbalance alert)
-    const { data: recon } = await supabase.rpc('reconcile_money_system');
-    if (recon && (recon as { consistent: boolean }).consistent === false) total += 1;
+    // 2) Cora fraud scan : la fonction est volontairement réservée au cron
+    //    serveur (revoke all from authenticated). On ne l'appelle plus depuis
+    //    le client — elle tourne automatiquement en arrière-plan.
+
+    // 3) Reconciliation comptable (v3 → v2 → v1)
+    const v3 = await supabase.rpc('reconcile_money_system_v3');
+    let recon = v3;
+    if (v3.error) {
+      const v2 = await supabase.rpc('reconcile_money_system_v2');
+      recon = v2.error ? await supabase.rpc('reconcile_money_system') : v2;
+    }
+    if (recon.data && (recon.data as { consistent: boolean }).consistent === false) {
+      total += 1;
+    }
 
     setScanning(false);
-    if (coraErr) {
-      setScanResult(`Erreur scan : ${coraErr.message}`);
+    if (errors.length > 0) {
+      setScanResult(`Scan terminé avec ${errors.length} erreur(s) : ${errors.join(' · ')}`);
     } else {
       setScanResult(`${total} nouvelle(s) alerte(s) détectée(s)`);
       load();
