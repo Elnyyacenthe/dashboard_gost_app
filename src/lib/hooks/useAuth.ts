@@ -52,36 +52,65 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    // On utilise UNIQUEMENT onAuthStateChange (inclut INITIAL_SESSION)
-    // Cela évite le double-fetch que causait getSession() + onAuthStateChange
+    let mounted = true;
+
+    // Helper pour appliquer une session
+    const applySession = async (session: Session | null) => {
+      if (!mounted) return;
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id);
+        if (!mounted) return;
+        setAuthState({
+          user: session.user,
+          profile,
+          session,
+          loading: false,
+          isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
+          isSuperAdmin: profile?.role === 'super_admin',
+          isModerator: profile?.role === 'moderator',
+        });
+      } else {
+        setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
+      }
+    };
+
+    // 1) Lecture immédiate de la session existante (résout loading rapidement)
+    supabase.auth.getSession()
+      .then(({ data }) => applySession(data.session))
+      .catch(err => {
+        console.error('[useAuth] getSession failed:', err);
+        if (mounted) {
+          setAuthState(prev => ({ ...prev, loading: false }));
+        }
+      });
+
+    // 2) Safety net : si dans 5s rien ne se résout, on force loading=false
+    //    → évite l'écran "Chargement…" infini si Supabase a un hiccup
+    const safetyTimer = setTimeout(() => {
+      if (!mounted) return;
+      setAuthState(prev => (prev.loading ? { ...prev, loading: false } : prev));
+    }, 5000);
+
+    // 3) Listener pour les changements d'auth ultérieurs
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-          if (session?.user) {
-            const profile = await fetchProfile(session.user.id);
-            setAuthState({
-              user: session.user,
-              profile,
-              session,
-              loading: false,
-              isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
-              isSuperAdmin: profile?.role === 'super_admin',
-              isModerator: profile?.role === 'moderator',
-            });
-          } else {
-            setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
-          }
+        if (!mounted) return;
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          await applySession(session);
         } else if (event === 'SIGNED_OUT') {
           profileCache.current.clear();
           setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Pas besoin de re-fetcher le profil, juste mettre à jour la session
-          setAuthState(prev => ({ ...prev, session, isSuperAdmin: (prev.profile?.role ?? '') === 'super_admin' }));
+          setAuthState(prev => ({ ...prev, session }));
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const signIn = async (email: string, password: string) => {
