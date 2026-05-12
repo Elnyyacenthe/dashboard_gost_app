@@ -3,7 +3,8 @@ import {
   FileSpreadsheet, RefreshCw, Loader2, Lock, Search,
   AlertTriangle, CheckCircle2, Clock, AlertCircle,
   Phone, Building2, User, ExternalLink, Download,
-  ArrowDownCircle, ArrowUpCircle,
+  ArrowDownCircle, ArrowUpCircle, X, Copy, Wallet,
+  Plus, Minus, ScanSearch,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -205,6 +206,8 @@ export default function FinanceReportPage() {
   const [respFilter, setRespFilter] = useState<Responsible | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'DEPOSIT' | 'WITHDRAW'>('all');
   const [reconcileResult, setReconcileResult] = useState<string | null>(null);
+  const [selectedTx, setSelectedTx] = useState<EnrichedTx | null>(null);
+  const [refSearch, setRefSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -333,16 +336,22 @@ export default function FinanceReportPage() {
   }, [txs]);
 
   const filtered = useMemo(() => {
+    const refQ = refSearch.trim().toLowerCase();
     return txs
       .filter(t => respFilter === 'all' || t.diagnostic.responsible === respFilter)
       .filter(t => typeFilter === 'all' || t.transaction_type === typeFilter)
+      .filter(t => !refQ ||
+        t.reference.toLowerCase().includes(refQ) ||
+        t.external_id?.toLowerCase().includes(refQ) ||
+        t.id.toLowerCase().includes(refQ)
+      )
       .filter(t => !search ||
         t.username?.toLowerCase().includes(search.toLowerCase()) ||
         t.reference.toLowerCase().includes(search.toLowerCase()) ||
         t.payer_or_receiver?.includes(search) ||
         String(t.amount).includes(search)
       );
-  }, [txs, respFilter, typeFilter, search]);
+  }, [txs, respFilter, typeFilter, search, refSearch]);
 
   if (authLoading) {
     return <div className="flex h-40 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -414,6 +423,44 @@ export default function FinanceReportPage() {
           {reconcileResult}
         </div>
       )}
+
+      {/* ── Recherche dédiée par ID transaction ── */}
+      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <ScanSearch className="h-5 w-5 text-primary" />
+          <h2 className="text-sm font-bold text-text uppercase tracking-wider">
+            Rechercher une transaction
+          </h2>
+          <span className="ml-auto text-[10px] text-text-muted">
+            Reference Freemopay / external_id / UUID interne
+          </span>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+          <input
+            type="text"
+            value={refSearch}
+            onChange={e => setRefSearch(e.target.value)}
+            placeholder="Coller l'ID de transaction (ex: FMP-XXXX-XXXX ou UUID)…"
+            className="w-full rounded-xl border border-border/40 bg-surface-light pl-10 pr-4 py-3 text-sm font-mono text-text placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          {refSearch && (
+            <button
+              type="button"
+              onClick={() => setRefSearch('')}
+              aria-label="Effacer"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-text-muted hover:text-text"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {refSearch && (
+          <p className="mt-2 text-xs text-text-muted">
+            {filtered.length} transaction(s) trouvée(s). Cliquez sur une ligne pour voir le détail complet.
+          </p>
+        )}
+      </div>
 
       {/* Stats par responsable */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -491,9 +538,12 @@ export default function FinanceReportPage() {
                 const sev = sevColors[tx.diagnostic.severity];
                 const isDeposit = tx.transaction_type === 'DEPOSIT';
                 return (
-                  <tr key={tx.id} className={`border-b border-border/10 hover:bg-surface-lighter ${
-                    tx.diagnostic.severity === 'critical' ? 'bg-danger/5' : ''
-                  }`}>
+                  <tr key={tx.id}
+                    onClick={() => setSelectedTx(tx)}
+                    className={`cursor-pointer border-b border-border/10 hover:bg-surface-lighter ${
+                      tx.diagnostic.severity === 'critical' ? 'bg-danger/5' : ''
+                    }`}
+                    title="Cliquer pour voir le détail complet">
                     <td className="px-3 py-2.5 text-xs text-text-muted whitespace-nowrap">
                       {format(new Date(tx.created_at), 'dd/MM HH:mm', { locale: fr })}
                     </td>
@@ -586,6 +636,387 @@ export default function FinanceReportPage() {
             Dashboard Freemopay <ExternalLink className="h-3 w-3" />
           </a>
         </p>
+      </div>
+
+      {/* ── Modal détail transaction ── */}
+      {selectedTx && (
+        <TransactionDetailModal
+          tx={selectedTx}
+          onClose={() => setSelectedTx(null)}
+          onRefresh={() => { load(); setSelectedTx(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// MODAL DÉTAIL TRANSACTION
+// ============================================================
+
+function TransactionDetailModal({
+  tx, onClose, onRefresh,
+}: {
+  tx: EnrichedTx;
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const [userCoins, setUserCoins] = useState<number | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [acting, setActing] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
+
+  // Charger le solde + rôle du user actuel
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('coins, role, email')
+        .eq('id', tx.user_id)
+        .maybeSingle();
+      if (data) {
+        setUserCoins(data.coins ?? 0);
+        setUserRole(data.role ?? null);
+        setUserEmail(data.email ?? null);
+      }
+    })();
+  }, [tx.user_id]);
+
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setActionMsg({ type: 'ok', msg: 'Copié dans le presse-papier' });
+      setTimeout(() => setActionMsg(null), 1500);
+    });
+  };
+
+  const creditManually = async () => {
+    const reason = prompt(
+      `Créditer manuellement +${tx.amount.toLocaleString()} coins au user ${tx.username ?? tx.user_id}.\n` +
+      `Raison (ex: "Dépôt Freemopay ${tx.reference} confirmé téléphone") :`
+    );
+    if (!reason || reason.trim().length < 3) return;
+    setActing(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_adjust_user_coins', {
+        p_user_id: tx.user_id,
+        p_delta: tx.amount,
+        p_reason: `[FREEMOPAY ${tx.reference}] ${reason.trim()}`,
+      });
+      if (error) throw error;
+      if (data?.success === false) throw new Error(data.error);
+      setActionMsg({ type: 'ok', msg: `+${tx.amount} coins crédités. Nouveau solde : ${data?.new_balance ?? '?'}` });
+      setTimeout(onRefresh, 1500);
+    } catch (e) {
+      setActionMsg({ type: 'err', msg: e instanceof Error ? e.message : 'Erreur' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const refundManually = async () => {
+    const reason = prompt(
+      `Refunder manuellement +${tx.amount.toLocaleString()} coins (retrait échoué).\n` +
+      `Raison (ex: "Retrait Freemopay ${tx.reference} échoué, refund") :`
+    );
+    if (!reason || reason.trim().length < 3) return;
+    setActing(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_adjust_user_coins', {
+        p_user_id: tx.user_id,
+        p_delta: tx.amount,
+        p_reason: `[REFUND ${tx.reference}] ${reason.trim()}`,
+      });
+      if (error) throw error;
+      if (data?.success === false) throw new Error(data.error);
+      setActionMsg({ type: 'ok', msg: `Refund OK. Nouveau solde : ${data?.new_balance ?? '?'}` });
+      setTimeout(onRefresh, 1500);
+    } catch (e) {
+      setActionMsg({ type: 'err', msg: e instanceof Error ? e.message : 'Erreur' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const isDeposit = tx.transaction_type === 'DEPOSIT';
+  const sev = sevColors[tx.diagnostic.severity];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border/30 bg-surface-light shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border/20 bg-surface-light/95 backdrop-blur-sm px-6 py-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+              isDeposit ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'
+            }`}>
+              {isDeposit ? <ArrowDownCircle className="h-5 w-5" /> : <ArrowUpCircle className="h-5 w-5" />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                Détail transaction · {isDeposit ? 'DÉPÔT' : 'RETRAIT'}
+              </p>
+              <p className="text-lg font-bold text-text truncate">
+                {tx.amount.toLocaleString()} FCFA
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="rounded-lg p-2 text-text-muted hover:bg-surface-lighter hover:text-text"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Action message */}
+          {actionMsg && (
+            <div className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${
+              actionMsg.type === 'ok'
+                ? 'bg-success/10 border-success/30 text-success'
+                : 'bg-danger/10 border-danger/30 text-danger'
+            }`}>
+              {actionMsg.type === 'ok'
+                ? <CheckCircle2 className="h-4 w-4" />
+                : <AlertCircle className="h-4 w-4" />}
+              {actionMsg.msg}
+            </div>
+          )}
+
+          {/* ─── 1. USER ─────────────────────────────────── */}
+          <section>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5" /> Utilisateur
+            </h3>
+            <div className="rounded-xl border border-border/20 bg-surface p-4 space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-sm font-extrabold text-primary">
+                  {(tx.username ?? '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-text">{tx.username ?? '(sans nom)'}</p>
+                  {userEmail && <p className="text-xs text-text-muted">{userEmail}</p>}
+                </div>
+                <a
+                  href={`/dashboard/users/${tx.user_id}`}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  Fiche 360 <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/10">
+                <KV label="ID user" value={tx.user_id.slice(0, 12) + '…'} mono onCopy={() => copy(tx.user_id)} />
+                <KV label="Rôle" value={userRole ?? '—'} />
+                <KV label="Solde actuel"
+                  value={userCoins != null ? `${userCoins.toLocaleString()} coins` : '…'}
+                  highlight="primary"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* ─── 2. FREEMOPAY ────────────────────────────── */}
+          <section>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5" /> Freemopay (côté opérateur)
+            </h3>
+            <div className="rounded-xl border border-border/20 bg-surface p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <KV
+                  label="Reference"
+                  value={tx.reference}
+                  mono
+                  onCopy={() => copy(tx.reference)}
+                />
+                <KV
+                  label="External ID"
+                  value={tx.external_id ?? '—'}
+                  mono
+                  onCopy={tx.external_id ? () => copy(tx.external_id) : undefined}
+                />
+                <KV
+                  label="Statut"
+                  value={tx.status}
+                  highlight={
+                    tx.status === 'SUCCESS' ? 'success' :
+                    tx.status === 'FAILED' ? 'danger' :
+                    'warning'
+                  }
+                />
+                <KV
+                  label="Téléphone"
+                  value={tx.payer_or_receiver ?? '—'}
+                  mono
+                />
+                <KV
+                  label="Créée"
+                  value={format(new Date(tx.created_at), 'dd MMM yyyy HH:mm:ss', { locale: fr })}
+                />
+                <KV
+                  label="Mise à jour"
+                  value={format(new Date(tx.updated_at), 'dd MMM yyyy HH:mm:ss', { locale: fr })}
+                />
+              </div>
+              {tx.message && (
+                <div className="rounded-lg bg-surface-lighter p-2.5 text-xs text-text-muted">
+                  <p className="font-semibold mb-0.5">Message :</p>
+                  {tx.message}
+                </div>
+              )}
+              {tx.callback_data && Object.keys(tx.callback_data).length > 0 && (
+                <details className="rounded-lg bg-surface-lighter p-2.5">
+                  <summary className="cursor-pointer text-xs font-semibold text-text-muted">
+                    Callback data brut ({Object.keys(tx.callback_data).length} champs)
+                  </summary>
+                  <pre className="mt-2 overflow-x-auto text-[10px] text-text">
+                    {JSON.stringify(tx.callback_data, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          </section>
+
+          {/* ─── 3. WALLET (interne) ─────────────────────── */}
+          <section>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5" /> Wallet interne (coins)
+            </h3>
+            <div className="rounded-xl border border-border/20 bg-surface p-4">
+              {tx.walletEntry ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                    <p className="font-bold text-success">
+                      Wallet {tx.walletEntry.delta > 0 ? 'crédité' : 'débité'} de{' '}
+                      {tx.walletEntry.delta > 0 ? '+' : ''}
+                      {tx.walletEntry.delta.toLocaleString()} coins
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/10">
+                    <KV label="Reason" value={tx.walletEntry.reason} mono />
+                    <KV label="Ref type" value={tx.walletEntry.ref_type ?? '—'} />
+                    <KV label="Ref ID" value={tx.walletEntry.ref_id ?? '—'} mono />
+                    <KV
+                      label="Date"
+                      value={format(new Date(tx.walletEntry.created_at), 'dd MMM HH:mm:ss', { locale: fr })}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-danger">
+                  <AlertCircle className="h-5 w-5" />
+                  <p className="font-bold">
+                    {isDeposit
+                      ? 'Pas de crédit wallet enregistré'
+                      : 'Pas d\'entrée wallet associée'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ─── 4. DIAGNOSTIC ───────────────────────────── */}
+          <section>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" /> Diagnostic
+            </h3>
+            <div className={`rounded-xl border p-4 ${sev}`}>
+              <p className="font-bold mb-1">{tx.diagnostic.issue}</p>
+              <p className="text-sm opacity-90 mb-3">
+                <strong>Action recommandée :</strong> {tx.diagnostic.action}
+              </p>
+              <div className="flex items-center gap-2 text-xs">
+                {respIcons[tx.diagnostic.responsible]}
+                <span className="font-semibold">{respLabels[tx.diagnostic.responsible]}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* ─── 5. ACTIONS MANUELLES ────────────────────── */}
+          <section>
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+              Interventions manuelles (super_admin)
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {isDeposit && !tx.walletEntry && tx.status === 'SUCCESS' && (
+                <button
+                  type="button"
+                  onClick={creditManually}
+                  disabled={acting}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-success/15 border border-success/30 px-4 py-3 text-sm font-bold text-success hover:bg-success/25 disabled:opacity-50"
+                >
+                  {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Créditer manuellement +{tx.amount.toLocaleString()}
+                </button>
+              )}
+              {!isDeposit && tx.status === 'FAILED' && !tx.walletEntry?.reason?.includes('refund') && (
+                <button
+                  type="button"
+                  onClick={refundManually}
+                  disabled={acting}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-warning/15 border border-warning/30 px-4 py-3 text-sm font-bold text-warning hover:bg-warning/25 disabled:opacity-50"
+                >
+                  {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Minus className="h-4 w-4" />}
+                  Refunder manuellement +{tx.amount.toLocaleString()}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => copy(`Transaction ${tx.reference}\nUser: ${tx.username} (${tx.user_id})\nMontant: ${tx.amount} FCFA\nStatus: ${tx.status}\nTel: ${tx.payer_or_receiver}\nDate: ${tx.created_at}`)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-border/30 px-4 py-3 text-sm font-semibold text-text-muted hover:bg-surface-lighter hover:text-text"
+              >
+                <Copy className="h-4 w-4" />
+                Copier infos (support)
+              </button>
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">
+              Toute intervention est tracée dans <code>admin_actions_log</code> avec la raison obligatoire.
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub : Key-Value tile ───
+function KV({ label, value, mono, onCopy, highlight }: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  onCopy?: () => void;
+  highlight?: 'success' | 'danger' | 'warning' | 'primary';
+}) {
+  const colorMap: Record<NonNullable<typeof highlight>, string> = {
+    success: 'text-success',
+    danger: 'text-danger',
+    warning: 'text-warning',
+    primary: 'text-primary',
+  };
+  const valueClass = `truncate ${mono ? 'font-mono text-xs' : 'text-sm font-semibold'} ${
+    highlight ? colorMap[highlight] : 'text-text'
+  }`;
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{label}</p>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <p className={valueClass} title={value}>{value}</p>
+        {onCopy && (
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label="Copier"
+            className="shrink-0 rounded p-0.5 text-text-muted/60 hover:text-text hover:bg-surface-lighter"
+          >
+            <Copy className="h-3 w-3" />
+          </button>
+        )}
       </div>
     </div>
   );
