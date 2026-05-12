@@ -117,46 +117,49 @@ export default function AlertsPage() {
 
   const runScan = async () => {
     setScanning(true);
-    setScanResult(null);
+    setScanResult('Scan en cours…');
     let total = 0;
     const errors: string[] = [];
 
-    // 1) Scan fraud patterns (winrate, large_winnings, frequent_withdrawals…)
-    // Préfère v2 si dispo (inclut new_account + no_play_high_balance), fallback v1
-    const v2Scan = await supabase.rpc('scan_for_fraud_patterns_v2');
-    let scan = v2Scan;
-    if (v2Scan.error) {
-      scan = await supabase.rpc('scan_for_fraud_patterns');
-    }
-    if (scan.error) {
-      errors.push(scan.error.message);
-    } else if (typeof scan.data === 'number') {
-      total += scan.data;
-    }
+    try {
+      // 1) Scan fraud patterns : v2 → v1 fallback
+      const v2Scan = await supabase.rpc('scan_for_fraud_patterns_v2');
+      let scan = v2Scan;
+      if (v2Scan.error) {
+        scan = await supabase.rpc('scan_for_fraud_patterns');
+      }
+      if (scan.error) {
+        errors.push(`scan: ${scan.error.message}`);
+      } else if (typeof scan.data === 'number') {
+        total += scan.data;
+      }
 
-    // 2) Cora fraud scan : la fonction est volontairement réservée au cron
-    //    serveur (revoke all from authenticated). On ne l'appelle plus depuis
-    //    le client — elle tourne automatiquement en arrière-plan.
+      // 2) Cora scan : volontairement bloqué côté client (cron serveur). Skip.
 
-    // 3) Reconciliation comptable (v3 → v2 → v1)
-    const v3 = await supabase.rpc('reconcile_money_system_v3');
-    let recon = v3;
-    if (v3.error) {
-      const v2 = await supabase.rpc('reconcile_money_system_v2');
-      recon = v2.error ? await supabase.rpc('reconcile_money_system') : v2;
-    }
-    if (recon.data && (recon.data as { consistent: boolean }).consistent === false) {
-      total += 1;
+      // 3) Réconciliation v3 → v2 → v1
+      const v3 = await supabase.rpc('reconcile_money_system_v3');
+      let recon = v3;
+      if (v3.error) {
+        const v2 = await supabase.rpc('reconcile_money_system_v2');
+        recon = v2.error ? await supabase.rpc('reconcile_money_system') : v2;
+      }
+      if (recon.error) {
+        errors.push(`reconcile: ${recon.error.message}`);
+      } else if (recon.data && (recon.data as { consistent: boolean }).consistent === false) {
+        total += 1;
+      }
+    } catch (e) {
+      errors.push(`exception: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     setScanning(false);
     if (errors.length > 0) {
-      setScanResult(`Scan terminé avec ${errors.length} erreur(s) : ${errors.join(' · ')}`);
+      setScanResult(`✗ ${total} alerte(s) détectée(s) — ${errors.length} erreur(s) : ${errors.join(' · ')}`);
     } else {
-      setScanResult(`${total} nouvelle(s) alerte(s) détectée(s)`);
-      load();
+      setScanResult(`✓ Scan terminé — ${total} nouvelle(s) alerte(s) détectée(s)`);
     }
-    setTimeout(() => setScanResult(null), 4000);
+    load();
+    // Message persistant jusqu'au prochain scan ou refresh (plus de auto-clear 4s)
   };
 
   const resolve = async (id: number | string) => {
