@@ -122,10 +122,14 @@ export default function TreasuryPage() {
 
   const loadReconcile = useCallback(async () => {
     try {
-      // Tentative v2 d'abord (tient compte de l'héritage opening_balance),
-      // fallback v1 si v2 pas encore déployée.
-      const v2 = await supabase.rpc('reconcile_money_system_v2');
-      const { data } = v2.error ? await supabase.rpc('reconcile_money_system') : v2;
+      // Tentative v3 (legacy untracked bets) → v2 (opening_balance) → v1 (legacy).
+      const v3 = await supabase.rpc('reconcile_money_system_v3');
+      let result = v3;
+      if (v3.error) {
+        const v2 = await supabase.rpc('reconcile_money_system_v2');
+        result = v2.error ? await supabase.rpc('reconcile_money_system') : v2;
+      }
+      const { data } = result;
       if (data) setReconcile(data as ReconcileResult);
     } catch (e) {
       console.error('Reconcile error:', e);
