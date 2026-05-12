@@ -15,6 +15,7 @@ import GameReplay from './pages/GameReplay';
 import Replay from './pages/Replay';
 import Announcements from './pages/Announcements';
 import FinanceReport from './pages/FinanceReport';
+import Cashflow from './pages/Cashflow';
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="treasury" element={<TreasuryPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="finance" element={<FinanceReport />} />
+          <Route path="cashflow" element={<Cashflow />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="announcements" element={<Announcements />} />
           <Route path="settings" element={<Settings />} />

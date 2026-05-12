@@ -20,6 +20,7 @@ export type Permission =
   | 'nav.treasury'
   | 'nav.audit'
   | 'nav.finance'
+  | 'nav.cashflow'
   | 'nav.replay'
   | 'nav.support'
   | 'nav.settings'
@@ -42,7 +43,7 @@ const MATRIX: Record<Role, ReadonlySet<Permission>> = {
   super_admin: new Set<Permission>([
     'nav.overview', 'nav.users', 'nav.games', 'nav.analytics',
     'nav.alerts', 'nav.announcements', 'nav.treasury', 'nav.audit',
-    'nav.finance', 'nav.replay', 'nav.support', 'nav.settings',
+    'nav.finance', 'nav.cashflow', 'nav.replay', 'nav.support', 'nav.settings',
     'action.broadcast_announcement', 'action.retract_announcement',
     'action.adjust_user_coins', 'action.block_user', 'action.change_user_role',
     'action.refund_game', 'action.treasury_transfer', 'action.modify_settings',
