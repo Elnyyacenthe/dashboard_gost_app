@@ -122,7 +122,10 @@ export default function TreasuryPage() {
 
   const loadReconcile = useCallback(async () => {
     try {
-      const { data } = await supabase.rpc('reconcile_money_system');
+      // Tentative v2 d'abord (tient compte de l'héritage opening_balance),
+      // fallback v1 si v2 pas encore déployée.
+      const v2 = await supabase.rpc('reconcile_money_system_v2');
+      const { data } = v2.error ? await supabase.rpc('reconcile_money_system') : v2;
       if (data) setReconcile(data as ReconcileResult);
     } catch (e) {
       console.error('Reconcile error:', e);
