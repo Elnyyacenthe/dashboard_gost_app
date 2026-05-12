@@ -33,11 +33,22 @@ export function useAuth() {
     const cached = profileCache.current.get(userId);
     if (cached) return cached;
 
-    const { data, error } = await supabase
+    // Timeout 8s : si la requête traîne (RLS lourd, network lent),
+    // on retourne null plutôt que de bloquer indéfiniment le hook.
+    const timeoutPromise = new Promise<{ data: null; error: { code: string; message: string } }>(
+      resolve => setTimeout(
+        () => resolve({ data: null, error: { code: 'TIMEOUT', message: 'fetchProfile timeout 8s' } }),
+        8000,
+      ),
+    );
+
+    const queryPromise = supabase
       .from('user_profiles')
       .select('id, username, email, avatar_url, role, coins, is_blocked, created_at, last_seen')
       .eq('id', userId)
       .maybeSingle();
+
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
     if (error) {
       console.error('[fetchProfile] error:', error.code, error.message);
@@ -53,11 +64,17 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
+    // Flag : la session a-t-elle été "résolue" (success ou null confirmé) ?
+    // Le safety timer ne touchera PAS l'auth state si déjà résolue.
+    let sessionResolved = false;
 
     // Helper pour appliquer une session
     const applySession = async (session: Session | null) => {
       if (!mounted) return;
       if (session?.user) {
+        // On garde loading=true jusqu'à ce que profile soit chargé,
+        // sinon AdminLayout verrait user présent mais isAdmin=false → redirect login.
+        // fetchProfile a son propre timeout 8s donc ne bloquera pas indéfiniment.
         const profile = await fetchProfile(session.user.id);
         if (!mounted) return;
         setAuthState({
@@ -69,27 +86,33 @@ export function useAuth() {
           isSuperAdmin: profile?.role === 'super_admin',
           isModerator: profile?.role === 'moderator',
         });
+        sessionResolved = true;
       } else {
         setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
+        sessionResolved = true;
       }
     };
 
-    // 1) Lecture immédiate de la session existante (résout loading rapidement)
+    // 1) Lecture immédiate de la session existante
     supabase.auth.getSession()
       .then(({ data }) => applySession(data.session))
       .catch(err => {
         console.error('[useAuth] getSession failed:', err);
-        if (mounted) {
-          setAuthState(prev => ({ ...prev, loading: false }));
+        if (mounted && !sessionResolved) {
+          // Vraiment échec : on déclare la session null pour permettre redirect
+          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
+          sessionResolved = true;
         }
       });
 
-    // 2) Safety net : si dans 5s rien ne se résout, on force loading=false
-    //    → évite l'écran "Chargement…" infini si Supabase a un hiccup
+    // 2) Safety net : si getSession() ne réagit JAMAIS (cas exceptionnel),
+    //    force loading=false pour ne pas bloquer l'écran. 15s donne le temps
+    //    aux requêtes RLS lentes. Ne touche pas l'auth si déjà résolue.
     const safetyTimer = setTimeout(() => {
-      if (!mounted) return;
+      if (!mounted || sessionResolved) return;
+      console.warn('[useAuth] safety timer triggered — getSession did not resolve in 15s');
       setAuthState(prev => (prev.loading ? { ...prev, loading: false } : prev));
-    }, 5000);
+    }, 15000);
 
     // 3) Listener pour les changements d'auth ultérieurs
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -100,6 +123,7 @@ export function useAuth() {
         } else if (event === 'SIGNED_OUT') {
           profileCache.current.clear();
           setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
+          sessionResolved = true;
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           setAuthState(prev => ({ ...prev, session }));
         }
