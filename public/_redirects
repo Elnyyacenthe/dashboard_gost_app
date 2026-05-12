@@ -1,0 +1,3 @@
+# SPA fallback : toutes les routes non-fichiers servent index.html
+# Compatible : Netlify, Cloudflare Pages, Render
+/*  /index.html  200
