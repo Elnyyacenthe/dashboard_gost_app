@@ -53,34 +53,81 @@ WHERE reason = 'opening_balance' AND ref_type = 'system';
 -- ============================================================
 -- PARTIE B — NETTOYAGE (à exécuter APRES avoir vérifié le diagnostic)
 -- ============================================================
--- DECOMMENTER LE BLOC CI-DESSOUS POUR EXECUTER LE NETTOYAGE.
--- Tout est wrappé dans une transaction : tout ou rien.
+-- ⚠️ ATTENTION : 2 options selon ce que vous voulez. Lisez bien.
+-- Tout est wrappé dans une transaction atomique : tout ou rien.
 -- ============================================================
+
+-- ┌─────────────────────────────────────────────────────────────┐
+-- │ OPTION B-MIN : NETTOYAGE MINIMUM (RECOMMANDÉ)               │
+-- │                                                             │
+-- │ Supprime UNIQUEMENT la freemopay_transactions SYSTEM_*      │
+-- │ (le faux dépôt MM). Garde les wallet_ledger opening_balance │
+-- │ qui sont les soldes légitimes des joueurs.                  │
+-- │                                                             │
+-- │ → Compta Mobile Money propre.                               │
+-- │ → Joueurs gardent leurs coins historiques.                  │
+-- │ → ledger_invariant_view aura un mini-déséquilibre attendu   │
+-- │   = somme des opening balances (legacy normal).             │
+-- │                                                             │
+-- │ DÉCOMMENTER LE BLOC SUIVANT POUR EXÉCUTER :                 │
+-- └─────────────────────────────────────────────────────────────┘
 
 /*
 BEGIN;
 
--- B.1 : Archiver d'abord dans une table dédiée (au cas où)
 CREATE TABLE IF NOT EXISTS public.system_transactions_archive (
   archived_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   source_table   TEXT NOT NULL,
   payload        JSONB NOT NULL
 );
 
--- B.2 : Archiver les freemopay_transactions SYSTEM_*
+-- Archive avant suppression
 INSERT INTO system_transactions_archive (source_table, payload)
 SELECT 'freemopay_transactions', to_jsonb(ft.*)
 FROM freemopay_transactions ft
 WHERE ft.reference LIKE 'SYSTEM_%' OR ft.payer_or_receiver = 'system';
 
--- B.3 : Archiver les wallet_ledger opening_balance
+-- Supprime UNIQUEMENT les freemopay_transactions (faux dépôts MM)
+-- Le wallet_ledger reste intact → joueurs gardent leurs coins.
+DELETE FROM freemopay_transactions
+WHERE reference LIKE 'SYSTEM_%' OR payer_or_receiver = 'system';
+
+COMMIT;
+*/
+
+-- ┌─────────────────────────────────────────────────────────────┐
+-- │ OPTION B-FULL : NETTOYAGE COMPLET ⚠️ DANGEREUX              │
+-- │                                                             │
+-- │ Supprime AUSSI les wallet_ledger opening_balance ET retire  │
+-- │ les coins correspondants des 69 joueurs.                    │
+-- │                                                             │
+-- │ → 69 joueurs PERDENT leurs soldes historiques.              │
+-- │ → À utiliser SEULEMENT si vous voulez forcer tous les       │
+-- │   joueurs à reconstituer leur solde via vrais dépôts MM.    │
+-- │                                                             │
+-- │ DÉCOMMENTER LE BLOC SUIVANT POUR EXÉCUTER :                 │
+-- └─────────────────────────────────────────────────────────────┘
+
+/*
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS public.system_transactions_archive (
+  archived_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  source_table   TEXT NOT NULL,
+  payload        JSONB NOT NULL
+);
+
+INSERT INTO system_transactions_archive (source_table, payload)
+SELECT 'freemopay_transactions', to_jsonb(ft.*)
+FROM freemopay_transactions ft
+WHERE ft.reference LIKE 'SYSTEM_%' OR ft.payer_or_receiver = 'system';
+
 INSERT INTO system_transactions_archive (source_table, payload)
 SELECT 'wallet_ledger', to_jsonb(wl.*)
 FROM wallet_ledger wl
 WHERE wl.reason = 'opening_balance' AND wl.ref_type = 'system';
 
--- B.4 : Ajuster user_profiles.coins pour annuler les opening balances
--- (sinon ledger.sum() ne matchera plus coins après le delete)
+-- Retire les coins correspondants des user_profiles
 UPDATE user_profiles up
    SET coins = GREATEST(0, coins - (
      SELECT COALESCE(SUM(delta), 0)
@@ -96,11 +143,9 @@ UPDATE user_profiles up
      AND wl.ref_type = 'system'
  );
 
--- B.5 : Supprimer les wallet_ledger entries
 DELETE FROM wallet_ledger
 WHERE reason = 'opening_balance' AND ref_type = 'system';
 
--- B.6 : Supprimer les freemopay_transactions SYSTEM_*
 DELETE FROM freemopay_transactions
 WHERE reference LIKE 'SYSTEM_%' OR payer_or_receiver = 'system';
 
