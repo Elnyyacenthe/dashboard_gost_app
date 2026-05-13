@@ -244,11 +244,11 @@ export default function FinanceReportPage() {
       supabase
         .from('wallet_ledger')
         .select('user_id, delta, reason, ref_type, ref_id, created_at, metadata')
-        .in('reason', [
-          'mobile_money_deposit',
-          'mobile_money_withdraw_refund',
-          'freemopay_deposit',
-        ])
+        .or(
+          // Reason habituelles + admin_adjustment lie a une freemopay_tx
+          'reason.in.(mobile_money_deposit,mobile_money_withdraw_refund,freemopay_deposit),' +
+          'and(reason.eq.admin_adjustment,ref_type.eq.freemopay_tx)'
+        )
         .order('created_at', { ascending: false })
         .limit(2000),
       supabase
@@ -728,14 +728,18 @@ function TransactionDetailModal({
     if (!reason || reason.trim().length < 3) return;
     setActing(true);
     try {
+      // ref_type/ref_id : lie l'entrée wallet_ledger à la freemopay_tx
+      // → le diagnostic Finance considérera la transaction comme résolue
       const { data, error } = await supabase.rpc('admin_adjust_user_coins', {
         p_user_id: tx.user_id,
         p_delta: tx.amount,
         p_reason: `[FREEMOPAY ${tx.reference}] ${reason.trim()}`,
+        p_ref_type: 'freemopay_tx',
+        p_ref_id: tx.id,
       });
       if (error) throw error;
       if (data?.success === false) throw new Error(data.error);
-      setActionMsg({ type: 'ok', msg: `+${tx.amount} coins crédités. Nouveau solde : ${data?.new_balance ?? '?'}` });
+      setActionMsg({ type: 'ok', msg: `+${tx.amount} coins crédités. Nouveau solde : ${data?.new_balance ?? '?'}. Transaction résolue.` });
       setTimeout(onRefresh, 1500);
     } catch (e) {
       setActionMsg({ type: 'err', msg: e instanceof Error ? e.message : 'Erreur' });
@@ -756,10 +760,12 @@ function TransactionDetailModal({
         p_user_id: tx.user_id,
         p_delta: tx.amount,
         p_reason: `[REFUND ${tx.reference}] ${reason.trim()}`,
+        p_ref_type: 'freemopay_tx',
+        p_ref_id: tx.id,
       });
       if (error) throw error;
       if (data?.success === false) throw new Error(data.error);
-      setActionMsg({ type: 'ok', msg: `Refund OK. Nouveau solde : ${data?.new_balance ?? '?'}` });
+      setActionMsg({ type: 'ok', msg: `Refund OK. Nouveau solde : ${data?.new_balance ?? '?'}. Transaction résolue.` });
       setTimeout(onRefresh, 1500);
     } catch (e) {
       setActionMsg({ type: 'err', msg: e instanceof Error ? e.message : 'Erreur' });
