@@ -1,7 +1,7 @@
 // ============================================================
 // CASHFLOW — Evolution de la caisse + profits dans le temps
 // ============================================================
-// Croise freemopay_transactions (cash reel Mobile Money) avec
+// Croise kpay_transactions (cash reel Mobile Money) avec
 // treasury_movements (coins internes mises/gains/commissions)
 // pour reconstruire l'historique chronologique de la caisse et
 // suivre les profits.
@@ -37,7 +37,7 @@ interface FreemoTx {
   transaction_type: 'DEPOSIT' | 'WITHDRAW';
   amount: number;
   status: string;
-  payer_or_receiver: string | null;
+  phone: string | null;
   created_at: string;
 }
 
@@ -96,9 +96,9 @@ interface TimelineEvent {
 
 type Period = '24h' | '7d' | '30d' | '90d' | 'all';
 
-// Détection des transactions système internes (non Freemopay)
+// Détection des transactions système internes (non K-Pay)
 function isSystemTx(tx: FreemoTx): boolean {
-  return tx.reference?.startsWith('SYSTEM_') || tx.payer_or_receiver === 'system';
+  return tx.reference?.startsWith('SYSTEM_') || tx.phone === 'system';
 }
 
 const PERIOD_HOURS: Record<Period, number | null> = {
@@ -139,8 +139,8 @@ export default function CashflowPage() {
     const since = hours ? new Date(Date.now() - hours * 3600000).toISOString() : null;
 
     const freemoQ = supabase
-      .from('freemopay_transactions')
-      .select('id, user_id, reference, transaction_type, amount, status, payer_or_receiver, created_at')
+      .from('kpay_transactions')
+      .select('id, user_id, reference, transaction_type, amount, status, phone, created_at')
       .eq('status', 'SUCCESS')
       .order('created_at');
 
@@ -158,7 +158,7 @@ export default function CashflowPage() {
       // Zero-sum check (toujours global, pas filtré par période)
       supabase.from('ledger_invariant_view').select('*').maybeSingle(),
       // Dépôts SUCCESS sans crédit wallet (potentielle disparition)
-      supabase.from('freemopay_transactions')
+      supabase.from('kpay_transactions')
         .select('id, reference, user_id, amount, created_at')
         .eq('transaction_type', 'DEPOSIT')
         .eq('status', 'SUCCESS')
@@ -187,7 +187,7 @@ export default function CashflowPage() {
       const { data: walletEntries } = await supabase
         .from('wallet_ledger')
         .select('ref_id')
-        .eq('ref_type', 'freemopay_tx')
+        .eq('ref_type', 'kpay_tx')
         .in('ref_id', txIds);
       const creditedIds = new Set((walletEntries ?? []).map((w: { ref_id: string }) => w.ref_id));
       const suspects = depositsSuccess
@@ -209,7 +209,7 @@ export default function CashflowPage() {
     if (!isSuperAdmin) return;
     const sub = supabase
       .channel('cashflow-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'freemopay_transactions' }, load)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'kpay_transactions' }, load)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'treasury_movements' }, load)
       .subscribe();
     return () => { sub.unsubscribe(); };
@@ -948,8 +948,8 @@ function AnomalyPanel({ invariant, suspectDeposits }: {
                 {suspectDeposits.length} transaction{suspectDeposits.length > 1 ? 's' : ''} · {suspectTotal.toLocaleString()} FCFA
               </h3>
               <p className="mt-1 text-sm text-amber-800">
-                Ces dépôts sont marqués <strong>SUCCESS</strong> chez Freemopay mais <strong>n'ont pas crédité</strong> le wallet du user.
-                L'argent a été pris par Freemopay mais n'est pas arrivé dans notre comptabilité.
+                Ces dépôts sont marqués <strong>SUCCESS</strong> chez K-Pay mais <strong>n'ont pas crédité</strong> le wallet du user.
+                L'argent a été pris par K-Pay mais n'est pas arrivé dans notre comptabilité.
               </p>
               <div className="mt-3 max-h-40 overflow-y-auto rounded-lg bg-white/60 border border-amber-200">
                 <table className="w-full text-xs">

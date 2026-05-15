@@ -23,7 +23,7 @@ interface FreemoTx {
   transaction_type: 'DEPOSIT' | 'WITHDRAW';
   amount: number;
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
-  payer_or_receiver: string | null;
+  phone: string | null;
   message: string | null;
   callback_data: Record<string, unknown> | null;
   created_at: string;
@@ -40,7 +40,7 @@ interface WalletEntry {
   metadata: Record<string, unknown> | null;
 }
 
-type Responsible = 'OK' | 'FREEMOPAY' | 'CAISSE_INTERNE' | 'USER' | 'INVESTIGATE' | 'SYSTEM';
+type Responsible = 'OK' | 'KPAY' | 'CAISSE_INTERNE' | 'USER' | 'INVESTIGATE' | 'SYSTEM';
 
 interface EnrichedTx extends FreemoTx {
   username?: string | null;
@@ -60,21 +60,21 @@ interface EnrichedTx extends FreemoTx {
 function isSystemTransaction(tx: FreemoTx): boolean {
   return (
     tx.reference?.startsWith('SYSTEM_') ||
-    tx.payer_or_receiver === 'system'
+    tx.phone === 'system'
   );
 }
 
 function diagnose(tx: FreemoTx, walletEntry: WalletEntry | null | undefined): EnrichedTx['diagnostic'] {
   // ==== TRANSACTION SYSTEME INTERNE ====
   // Détection : reference SYSTEM_* OU tel = 'system'
-  // Ces transactions n'ont JAMAIS transité par Freemopay (callback_data = NULL).
-  // Elles viennent de seed/reconciliation interne. Ne PAS contacter Freemopay.
+  // Ces transactions n'ont JAMAIS transité par K-Pay (callback_data = NULL).
+  // Elles viennent de seed/reconciliation interne. Ne PAS contacter K-Pay.
   if (isSystemTransaction(tx)) {
     return {
       issue: '⚪ Transaction système interne (pré-ledger / réconciliation)',
       severity: 'info',
       responsible: 'SYSTEM',
-      action: 'NE PAS contacter Freemopay — c\'est une opération interne, pas un vrai paiement',
+      action: 'NE PAS contacter K-Pay — c\'est une opération interne, pas un vrai paiement',
     };
   }
 
@@ -92,7 +92,7 @@ function diagnose(tx: FreemoTx, walletEntry: WalletEntry | null | undefined): En
         };
       } else {
         return {
-          issue: '🚨 Dépôt SUCCESS chez Freemopay mais user PAS crédité',
+          issue: '🚨 Dépôt SUCCESS chez K-Pay mais user PAS crédité',
           severity: 'critical',
           responsible: 'CAISSE_INTERNE',
           action: 'Lancer la réconciliation OU créditer manuellement',
@@ -112,15 +112,15 @@ function diagnose(tx: FreemoTx, walletEntry: WalletEntry | null | undefined): En
       return {
         issue: `PENDING depuis ${Math.round(ageHours)}h sans callback`,
         severity: 'critical',
-        responsible: 'FREEMOPAY',
-        action: 'Vérifier statut chez Freemopay + lancer reconcile',
+        responsible: 'KPAY',
+        action: 'Vérifier statut chez K-Pay + lancer reconcile',
       };
     }
     if (ageHours > 1) {
       return {
         issue: `PENDING depuis ${Math.round(ageHours)}h`,
         severity: 'warning',
-        responsible: 'FREEMOPAY',
+        responsible: 'KPAY',
         action: 'Attendre webhook OU lancer reconcile',
       };
     }
@@ -162,15 +162,15 @@ function diagnose(tx: FreemoTx, walletEntry: WalletEntry | null | undefined): En
     return {
       issue: `Retrait PENDING ${Math.round(ageHours)}h — bloqué`,
       severity: 'critical',
-      responsible: 'FREEMOPAY',
-      action: 'Vérifier chez Freemopay si l\'argent est parti',
+      responsible: 'KPAY',
+      action: 'Vérifier chez K-Pay si l\'argent est parti',
     };
   }
   if (ageHours > 1) {
     return {
       issue: `Retrait en cours depuis ${Math.round(ageHours)}h`,
       severity: 'warning',
-      responsible: 'FREEMOPAY',
+      responsible: 'KPAY',
       action: 'Attendre confirmation OU lancer reconcile',
     };
   }
@@ -195,7 +195,7 @@ const sevColors: Record<EnrichedTx['diagnostic']['severity'], string> = {
 
 const respIcons: Record<Responsible, React.ReactNode> = {
   OK: <CheckCircle2 className="h-4 w-4" />,
-  FREEMOPAY: <Phone className="h-4 w-4" />,
+  KPAY: <Phone className="h-4 w-4" />,
   CAISSE_INTERNE: <Building2 className="h-4 w-4" />,
   USER: <User className="h-4 w-4" />,
   INVESTIGATE: <AlertCircle className="h-4 w-4" />,
@@ -204,7 +204,7 @@ const respIcons: Record<Responsible, React.ReactNode> = {
 
 const respLabels: Record<Responsible, string> = {
   OK: 'Tout OK',
-  FREEMOPAY: 'Contacter Freemopay',
+  KPAY: 'Contacter K-Pay',
   CAISSE_INTERNE: 'Caisse interne',
   USER: 'Contacter le user',
   INVESTIGATE: 'À investiguer',
@@ -213,7 +213,7 @@ const respLabels: Record<Responsible, string> = {
 
 const respColors: Record<Responsible, string> = {
   OK: 'text-success',
-  FREEMOPAY: 'text-info',
+  KPAY: 'text-info',
   CAISSE_INTERNE: 'text-warning',
   USER: 'text-primary',
   INVESTIGATE: 'text-danger',
@@ -237,7 +237,7 @@ export default function FinanceReportPage() {
 
     const [{ data: freemoData }, { data: walletData }, { data: profilesData }] = await Promise.all([
       supabase
-        .from('freemopay_transactions')
+        .from('kpay_transactions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500),
@@ -245,9 +245,9 @@ export default function FinanceReportPage() {
         .from('wallet_ledger')
         .select('user_id, delta, reason, ref_type, ref_id, created_at, metadata')
         .or(
-          // Reason habituelles + admin_adjustment lie a une freemopay_tx
-          'reason.in.(mobile_money_deposit,mobile_money_withdraw_refund,freemopay_deposit),' +
-          'and(reason.eq.admin_adjustment,ref_type.eq.freemopay_tx)'
+          // Reason habituelles + admin_adjustment lie a une kpay_tx
+          'reason.in.(mobile_money_deposit,mobile_money_withdraw_refund),' +
+          'and(reason.eq.admin_adjustment,ref_type.eq.kpay_tx)'
         )
         .order('created_at', { ascending: false })
         .limit(2000),
@@ -263,10 +263,10 @@ export default function FinanceReportPage() {
       usernames[p.id] = p.username ?? '?';
     });
 
-    // Index wallet entries par ref_id (= freemopay_tx.id)
+    // Index wallet entries par ref_id (= kpay_tx.id)
     const walletByRefId: Record<string, WalletEntry> = {};
     wallet.forEach(w => {
-      if (w.ref_type === 'freemopay_tx' && w.ref_id) {
+      if (w.ref_type === 'kpay_tx' && w.ref_id) {
         walletByRefId[w.ref_id] = w;
       }
     });
@@ -290,7 +290,7 @@ export default function FinanceReportPage() {
     load();
     const sub = supabase
       .channel('finance-report-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'freemopay_transactions' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kpay_transactions' }, load)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'wallet_ledger' }, load)
       .subscribe();
     return () => { sub.unsubscribe(); };
@@ -300,8 +300,8 @@ export default function FinanceReportPage() {
     setRunning(true);
     setReconcileResult(null);
     try {
-      const url = `/freemopay_reconcile${dryRun ? '?dry_run=1' : ''}`;
-      const { data, error } = await supabase.functions.invoke('freemopay_reconcile', {
+      const url = `/kpay_reconcile${dryRun ? '?dry_run=1' : ''}`;
+      const { data, error } = await supabase.functions.invoke('kpay_reconcile', {
         body: dryRun ? { dry_run: true } : {},
       });
       if (error) {
@@ -329,7 +329,7 @@ export default function FinanceReportPage() {
       format(new Date(t.created_at), 'yyyy-MM-dd HH:mm', { locale: fr }),
       t.transaction_type,
       t.username ?? t.user_id.slice(0, 8),
-      t.payer_or_receiver ?? '',
+      t.phone ?? '',
       String(t.amount),
       t.reference,
       t.status,
@@ -349,8 +349,8 @@ export default function FinanceReportPage() {
 
   // Stats par responsable
   const stats = useMemo(() => {
-    const byResp: Record<Responsible, number> = { OK: 0, FREEMOPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0, SYSTEM: 0 };
-    const amounts: Record<Responsible, number> = { OK: 0, FREEMOPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0, SYSTEM: 0 };
+    const byResp: Record<Responsible, number> = { OK: 0, KPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0, SYSTEM: 0 };
+    const amounts: Record<Responsible, number> = { OK: 0, KPAY: 0, CAISSE_INTERNE: 0, USER: 0, INVESTIGATE: 0, SYSTEM: 0 };
     txs.forEach(t => {
       byResp[t.diagnostic.responsible]++;
       amounts[t.diagnostic.responsible] += t.amount;
@@ -371,7 +371,7 @@ export default function FinanceReportPage() {
       .filter(t => !search ||
         t.username?.toLowerCase().includes(search.toLowerCase()) ||
         t.reference.toLowerCase().includes(search.toLowerCase()) ||
-        t.payer_or_receiver?.includes(search) ||
+        t.phone?.includes(search) ||
         String(t.amount).includes(search)
       );
   }, [txs, respFilter, typeFilter, search, refSearch]);
@@ -404,7 +404,7 @@ export default function FinanceReportPage() {
             </span>
           </div>
           <p className="mt-1 text-sm text-text-muted">
-            Croisement Freemopay × wallet_ledger × user_profiles. Identifie qui contacter pour chaque problème.
+            Croisement K-Pay × wallet_ledger × user_profiles. Identifie qui contacter pour chaque problème.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -455,7 +455,7 @@ export default function FinanceReportPage() {
             Rechercher une transaction
           </h2>
           <span className="ml-auto text-[10px] text-text-muted">
-            Reference Freemopay / external_id / UUID interne
+            Reference K-Pay / external_id / UUID interne
           </span>
         </div>
         <div className="relative">
@@ -487,7 +487,7 @@ export default function FinanceReportPage() {
 
       {/* Stats par responsable */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {(['OK', 'FREEMOPAY', 'CAISSE_INTERNE', 'USER', 'INVESTIGATE', 'SYSTEM'] as Responsible[]).map(r => (
+        {(['OK', 'KPAY', 'CAISSE_INTERNE', 'USER', 'INVESTIGATE', 'SYSTEM'] as Responsible[]).map(r => (
           <button
             key={r}
             onClick={() => setRespFilter(respFilter === r ? 'all' : r)}
@@ -586,7 +586,7 @@ export default function FinanceReportPage() {
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-text font-medium">{tx.username ?? tx.user_id.slice(0, 8)}</td>
-                    <td className="px-3 py-2.5 text-xs text-text-muted font-mono">{tx.payer_or_receiver ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-xs text-text-muted font-mono">{tx.phone ?? '—'}</td>
                     <td className={`px-3 py-2.5 text-right font-bold ${
                       isDeposit ? 'text-success' : 'text-warning'
                     }`}>
@@ -643,27 +643,27 @@ export default function FinanceReportPage() {
           <div className="flex items-start gap-2">
             <Phone className="h-4 w-4 text-info mt-0.5" />
             <div>
-              <strong className="text-info">Contacter Freemopay</strong> — le webhook n'arrive pas. Vérifier sur leur dashboard, ou lancer reconcile pour interroger leur API.
+              <strong className="text-info">Contacter K-Pay</strong> — le webhook n'arrive pas. Vérifier sur leur dashboard, ou lancer reconcile pour interroger leur API.
             </div>
           </div>
           <div className="flex items-start gap-2">
             <Building2 className="h-4 w-4 text-warning mt-0.5" />
             <div>
-              <strong className="text-warning">Caisse interne</strong> — Freemopay a fait son taf, mais notre wallet n'a pas reflété. Lancer reconcile suffit.
+              <strong className="text-warning">Caisse interne</strong> — K-Pay a fait son taf, mais notre wallet n'a pas reflété. Lancer reconcile suffit.
             </div>
           </div>
           <div className="flex items-start gap-2">
             <User className="h-4 w-4 text-primary mt-0.5" />
             <div>
-              <strong className="text-primary">Contacter le user</strong> — un user dit qu'il a payé mais Freemopay dit qu'il n'a rien fait, demander preuve de paiement.
+              <strong className="text-primary">Contacter le user</strong> — un user dit qu'il a payé mais K-Pay dit qu'il n'a rien fait, demander preuve de paiement.
             </div>
           </div>
         </div>
         <p className="pt-2 border-t border-border/20">
           <strong className="text-text">Lien rapide</strong> :
-          <a href="https://app.freemopay.com" target="_blank" rel="noopener noreferrer"
+          <a href="https://admin.kpay.site" target="_blank" rel="noopener noreferrer"
              className="ml-2 inline-flex items-center gap-1 text-info hover:underline">
-            Dashboard Freemopay <ExternalLink className="h-3 w-3" />
+            Dashboard K-Pay <ExternalLink className="h-3 w-3" />
           </a>
         </p>
       </div>
@@ -723,18 +723,18 @@ function TransactionDetailModal({
   const creditManually = async () => {
     const reason = prompt(
       `Créditer manuellement +${tx.amount.toLocaleString()} coins au user ${tx.username ?? tx.user_id}.\n` +
-      `Raison (ex: "Dépôt Freemopay ${tx.reference} confirmé téléphone") :`
+      `Raison (ex: "Dépôt K-Pay ${tx.reference} confirmé téléphone") :`
     );
     if (!reason || reason.trim().length < 3) return;
     setActing(true);
     try {
-      // ref_type/ref_id : lie l'entrée wallet_ledger à la freemopay_tx
+      // ref_type/ref_id : lie l'entrée wallet_ledger à la kpay_tx
       // → le diagnostic Finance considérera la transaction comme résolue
       const { data, error } = await supabase.rpc('admin_adjust_user_coins', {
         p_user_id: tx.user_id,
         p_delta: tx.amount,
-        p_reason: `[FREEMOPAY ${tx.reference}] ${reason.trim()}`,
-        p_ref_type: 'freemopay_tx',
+        p_reason: `[KPAY ${tx.reference}] ${reason.trim()}`,
+        p_ref_type: 'kpay_tx',
         p_ref_id: tx.id,
       });
       if (error) throw error;
@@ -751,7 +751,7 @@ function TransactionDetailModal({
   const refundManually = async () => {
     const reason = prompt(
       `Refunder manuellement +${tx.amount.toLocaleString()} coins (retrait échoué).\n` +
-      `Raison (ex: "Retrait Freemopay ${tx.reference} échoué, refund") :`
+      `Raison (ex: "Retrait K-Pay ${tx.reference} échoué, refund") :`
     );
     if (!reason || reason.trim().length < 3) return;
     setActing(true);
@@ -760,7 +760,7 @@ function TransactionDetailModal({
         p_user_id: tx.user_id,
         p_delta: tx.amount,
         p_reason: `[REFUND ${tx.reference}] ${reason.trim()}`,
-        p_ref_type: 'freemopay_tx',
+        p_ref_type: 'kpay_tx',
         p_ref_id: tx.id,
       });
       if (error) throw error;
@@ -823,15 +823,15 @@ function TransactionDetailModal({
                     Transaction système interne
                   </p>
                   <p className="mt-1 text-sm font-bold text-slate-900">
-                    Cette transaction n'a JAMAIS transité par Freemopay
+                    Cette transaction n'a JAMAIS transité par K-Pay
                   </p>
                   <p className="mt-1 text-xs text-slate-600 leading-relaxed">
                     Elle vient d'une opération interne (réconciliation initiale du ledger,
-                    seed d'opening balance ou bonus système). Le téléphone <code className="rounded bg-white px-1">{tx.payer_or_receiver}</code> et
+                    seed d'opening balance ou bonus système). Le téléphone <code className="rounded bg-white px-1">{tx.phone}</code> et
                     la référence <code className="rounded bg-white px-1">{tx.reference}</code> sont des marqueurs internes.
                   </p>
                   <p className="mt-2 text-xs font-bold text-slate-700">
-                    ⚠️ NE PAS contacter Freemopay — ils ne connaissent pas cette transaction.
+                    ⚠️ NE PAS contacter K-Pay — ils ne connaissent pas cette transaction.
                   </p>
                 </div>
               </div>
@@ -884,10 +884,10 @@ function TransactionDetailModal({
             </div>
           </section>
 
-          {/* ─── 2. FREEMOPAY ────────────────────────────── */}
+          {/* ─── 2. KPAY ────────────────────────────── */}
           <section>
             <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-              <Phone className="h-3.5 w-3.5" /> Freemopay (côté opérateur)
+              <Phone className="h-3.5 w-3.5" /> K-Pay (côté opérateur)
             </h3>
             <div className="rounded-xl border border-border/20 bg-surface p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -914,7 +914,7 @@ function TransactionDetailModal({
                 />
                 <KV
                   label="Téléphone"
-                  value={tx.payer_or_receiver ?? '—'}
+                  value={tx.phone ?? '—'}
                   mono
                 />
                 <KV
@@ -1031,7 +1031,7 @@ function TransactionDetailModal({
               )}
               <button
                 type="button"
-                onClick={() => copy(`Transaction ${tx.reference}\nUser: ${tx.username} (${tx.user_id})\nMontant: ${tx.amount} FCFA\nStatus: ${tx.status}\nTel: ${tx.payer_or_receiver}\nDate: ${tx.created_at}`)}
+                onClick={() => copy(`Transaction ${tx.reference}\nUser: ${tx.username} (${tx.user_id})\nMontant: ${tx.amount} FCFA\nStatus: ${tx.status}\nTel: ${tx.phone}\nDate: ${tx.created_at}`)}
                 className="flex items-center justify-center gap-2 rounded-xl border border-border/30 px-4 py-3 text-sm font-semibold text-text-muted hover:bg-surface-lighter hover:text-text"
               >
                 <Copy className="h-4 w-4" />

@@ -40,7 +40,7 @@ interface FreemoTxRow {
   transaction_type: 'DEPOSIT' | 'WITHDRAW';
   amount: number;
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
-  payer_or_receiver: string | null;
+  phone: string | null;
   message: string | null;
   created_at: string;
 }
@@ -149,7 +149,7 @@ export default function TreasuryPage() {
       supabase.from('admin_treasury').select('*').eq('id', 1).maybeSingle(),
       supabase.from('treasury_movements').select('*')
         .order('created_at', { ascending: false }).limit(500),
-      supabase.from('freemopay_transactions').select('*')
+      supabase.from('kpay_transactions').select('*')
         .order('created_at', { ascending: false }).limit(200),
       supabase.rpc('get_super_admin_wallet'),
     ]);
@@ -172,8 +172,8 @@ export default function TreasuryPage() {
       .channel('treasury-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_treasury' }, load)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'treasury_movements' }, load)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'freemopay_transactions' }, load)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'freemopay_transactions' }, load)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'kpay_transactions' }, load)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kpay_transactions' }, load)
       .subscribe();
     return () => { sub.unsubscribe(); };
   }, [isSuperAdmin, load]);
@@ -296,15 +296,15 @@ export default function TreasuryPage() {
         </button>
       </div>
 
-      {/* WALLET ADMIN BAR (info + lien vers Freemopay mobile) */}
+      {/* WALLET ADMIN BAR (info + lien vers K-Pay mobile) */}
       <div className="rounded-2xl border border-success/30 bg-gradient-to-br from-success/10 to-success/5 p-5">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="rounded-lg bg-success/20 p-2.5"><Wallet className="h-5 w-5 text-success" /></div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-success">Mon wallet personnel (super admin)</p>
             <p className="text-xs text-text-muted">
-              Pont vers Mobile Money : pour <strong>déposer</strong> du vrai argent dans la caisse, fais d'abord un dépôt Freemopay sur l'app mobile,
-              puis clique <strong>Déposer</strong> ci-dessous. Pour <strong>retirer</strong> du vrai argent, clique <strong>Retirer</strong> puis fais un retrait Freemopay sur l'app mobile.
+              Pont vers Mobile Money : pour <strong>déposer</strong> du vrai argent dans la caisse, fais d'abord un dépôt K-Pay sur l'app mobile,
+              puis clique <strong>Déposer</strong> ci-dessous. Pour <strong>retirer</strong> du vrai argent, clique <strong>Retirer</strong> puis fais un retrait K-Pay sur l'app mobile.
             </p>
           </div>
           <p className="text-3xl font-black text-text">
@@ -611,7 +611,7 @@ export default function TreasuryPage() {
             <div className="rounded-2xl border border-dashed border-border/30 bg-surface-light p-12 text-center">
               <Smartphone className="mx-auto mb-3 h-10 w-10 text-text-muted/50" />
               <p className="font-semibold text-text">Aucune transaction Mobile Money</p>
-              <p className="mt-2 text-sm text-text-muted">Les dépôts et retraits via Freemopay apparaîtront ici.</p>
+              <p className="mt-2 text-sm text-text-muted">Les dépôts et retraits via K-Pay apparaîtront ici.</p>
             </div>
           ) : (
             <div className="rounded-2xl border border-border/20 bg-surface-light overflow-hidden">
@@ -650,7 +650,7 @@ export default function TreasuryPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-text font-mono">
-                          {t.payer_or_receiver ?? '—'}
+                          {t.phone ?? '—'}
                         </td>
                         <td className="px-4 py-3 text-xs text-text-muted font-mono truncate max-w-[140px]">
                           {t.reference}
@@ -738,8 +738,8 @@ function ActionModal({ type, gameBalance, adminBalance, walletBalance, onClose, 
 
   // Note d'aide selon le type d'opération
   const helpText: Record<string, string> = {
-    admin_to_wallet: 'Les coins seront transférés vers ton wallet personnel. Tu pourras ensuite les retirer en vrai argent via Freemopay sur l\'app mobile.',
-    wallet_to_admin: 'Les coins de ton wallet personnel iront alimenter la caisse admin. Avant cette opération, fais un dépôt Freemopay via l\'app mobile pour avoir des coins.',
+    admin_to_wallet: 'Les coins seront transférés vers ton wallet personnel. Tu pourras ensuite les retirer en vrai argent via K-Pay sur l\'app mobile.',
+    wallet_to_admin: 'Les coins de ton wallet personnel iront alimenter la caisse admin. Avant cette opération, fais un dépôt K-Pay via l\'app mobile pour avoir des coins.',
     withdraw: 'Note comptable uniquement — décrémente la caisse admin sans transférer d\'argent. Pour du vrai argent, utilise plutôt "Caisse admin → Mon wallet".',
     deposit: 'Note comptable uniquement — incrémente la caisse admin sans recevoir d\'argent. Pour du vrai argent, utilise plutôt "Wallet → Caisse admin".',
   };

@@ -77,7 +77,7 @@ export default function AuditPage() {
     const [mvRes, fmRes, uRes, aRes, gRes] = await Promise.all([
       supabase.from('treasury_movements').select('*')
         .order('created_at', { ascending: false }).limit(10000),
-      supabase.from('freemopay_transactions').select('*')
+      supabase.from('kpay_transactions').select('*')
         .order('created_at', { ascending: false }).limit(2000),
       supabase.from('user_profiles').select('id, username, coins').limit(5000),
       supabase.from('admin_treasury').select('*').eq('id', 1).maybeSingle(),
@@ -265,13 +265,13 @@ export default function AuditPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
               <BalanceCard
                 icon={<ArrowDownCircle className="h-4 w-4" />}
-                label="Vrai argent entré (Freemopay deposits)"
+                label="Vrai argent entré (K-Pay deposits)"
                 value={realMoneyIn}
                 color="success"
               />
               <BalanceCard
                 icon={<ArrowUpCircle className="h-4 w-4" />}
-                label="Vrai argent sorti (Freemopay withdrawals)"
+                label="Vrai argent sorti (K-Pay withdrawals)"
                 value={realMoneyOut}
                 color="warning"
               />

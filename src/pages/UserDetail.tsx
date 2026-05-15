@@ -54,7 +54,7 @@ interface FreemoTx {
   transaction_type: 'DEPOSIT' | 'WITHDRAW';
   amount: number;
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
-  payer_or_receiver: string | null;
+  phone: string | null;
   created_at: string;
 }
 
@@ -107,7 +107,7 @@ export default function UserDetail() {
     const [u, mv, fm, al, tk, ad] = await Promise.all([
       supabase.from('admin_user_360_view').select('*').eq('id', id).maybeSingle(),
       supabase.from('treasury_movements').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(500),
-      supabase.from('freemopay_transactions').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(200),
+      supabase.from('kpay_transactions').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(200),
       supabase.from('admin_alerts').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(50),
       supabase.from('support_tickets').select('id, subject, status, category, created_at').eq('user_id', id).order('created_at', { ascending: false }),
       supabase.from('admin_actions_log').select('*').eq('target_user', id).order('created_at', { ascending: false }).limit(50),
@@ -391,7 +391,7 @@ function MobileTab({ txs }: { txs: FreemoTx[] }) {
               <td className="px-4 py-3 text-xs">
                 {t.transaction_type === 'DEPOSIT' ? 'Dépôt' : 'Retrait'}
               </td>
-              <td className="px-4 py-3 text-xs font-mono">{t.payer_or_receiver ?? '—'}</td>
+              <td className="px-4 py-3 text-xs font-mono">{t.phone ?? '—'}</td>
               <td className="px-4 py-3 text-xs">
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                   t.status === 'SUCCESS' ? 'bg-success/15 text-success' :
