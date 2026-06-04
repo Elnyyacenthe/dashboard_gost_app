@@ -110,6 +110,20 @@ interface ReconcileResult {
   checked_at: string;
 }
 
+// Stats par jeu provenant de treasury_game_stats RPC (wallet_ledger
+// universel). Couvre tous les jeux qui passent par _ledger_post
+// (penalty, slots_777, cora_dice, ludo, blackjack...) — donc ceux que
+// treasury_movements ignore.
+interface LedgerGameStat {
+  game_type: string;
+  bets_in: number;
+  payouts_out: number;
+  refunds_out: number;
+  count: number;
+  users: number;
+  net_profit: number;
+}
+
 export default function TreasuryPage() {
   const { isSuperAdmin, loading: authLoading } = useAuth();
   const [game, setGame] = useState<TreasuryRow | null>(null);
@@ -117,6 +131,7 @@ export default function TreasuryPage() {
   const [movements, setMovements] = useState<MovementRow[]>([]);
   const [freemoTxs, setFreemoTxs] = useState<FreemoTxRow[]>([]);
   const [adminWallet, setAdminWallet] = useState<number>(0);
+  const [ledgerStats, setLedgerStats] = useState<LedgerGameStat[]>([]);
   const [reconcile, setReconcile] = useState<ReconcileResult | null>(null);
   const [reconciling, setReconciling] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
@@ -148,7 +163,7 @@ export default function TreasuryPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [gameRes, adminRes, mvRes, freemoRes, walletRes] = await Promise.all([
+    const [gameRes, adminRes, mvRes, freemoRes, walletRes, ledgerRes] = await Promise.all([
       supabase.from('game_treasury').select('*').eq('id', 1).maybeSingle(),
       supabase.from('admin_treasury').select('*').eq('id', 1).maybeSingle(),
       supabase.from('treasury_movements').select('*')
@@ -156,6 +171,9 @@ export default function TreasuryPage() {
       supabase.from('kpay_transactions').select('*')
         .order('created_at', { ascending: false }).limit(200),
       supabase.rpc('get_super_admin_wallet'),
+      // Source UNIVERSELLE : aggregation wallet_ledger via RPC server-side
+      // (couvre tous les jeux qui passent par _ledger_post).
+      supabase.rpc('treasury_game_stats', { p_days: 30 }),
     ]);
     if (gameRes.data) setGame(gameRes.data as TreasuryRow);
     if (adminRes.data) setAdmin(adminRes.data as TreasuryRow);
@@ -164,6 +182,11 @@ export default function TreasuryPage() {
     if (walletRes.data && typeof walletRes.data === 'object') {
       const w = walletRes.data as { coins?: number };
       setAdminWallet(w.coins ?? 0);
+    }
+    // RPC absente (migration treasury_game_stats pas executee) ->
+    // tableau vide, le fallback treasury_movements reste actif.
+    if (!ledgerRes.error && Array.isArray(ledgerRes.data)) {
+      setLedgerStats(ledgerRes.data as LedgerGameStat[]);
     }
     await loadReconcile();
     setLoading(false);
@@ -178,6 +201,8 @@ export default function TreasuryPage() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'treasury_movements' }, load)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'kpay_transactions' }, load)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kpay_transactions' }, load)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'slot_spins' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bets' }, load)
       .subscribe();
     return () => { sub.unsubscribe(); };
   }, [isSuperAdmin, load]);
@@ -198,9 +223,22 @@ export default function TreasuryPage() {
     );
   }
 
-  // ── Calcul des stats par jeu ──
+  // ── Calcul des stats par jeu (fusion 2 sources) ──
+  // Source 1 : treasury_movements (existante, pour les jeux qui ecrivent
+  //            explicitement dans cette table avec movement_type 'loss_collect'
+  //            etc. : aviator, mines, etc.)
+  // Source 2 : wallet_ledger via RPC treasury_game_stats (UNIVERSELLE,
+  //            couvre tous les jeux passant par _ledger_post :
+  //            penalty, slots_777, cora_dice, blackjack, ludo...)
+  //
+  // Strategie : on prefere source 2 quand un game_type est dans les deux
+  // (donnees plus completes), et on ajoute les game_types qui sont
+  // uniquement dans l'une ou l'autre.
   const gameStats: GameStat[] = (() => {
     const map = new Map<string, GameStat>();
+
+    // 1) Hydrate depuis treasury_movements (couvre house_cut + tout jeu
+    //    qui passe par cette table)
     for (const m of movements) {
       if (!map.has(m.game_type)) {
         map.set(m.game_type, {
@@ -218,6 +256,33 @@ export default function TreasuryPage() {
       }
       s.net_profit = s.bets_in - s.payouts_out - s.refunds_out;
     }
+
+    // 2) Override / merge depuis wallet_ledger (source universelle).
+    //    Si un game_type est dans les deux : on remplace bets_in /
+    //    payouts_out / refunds_out par la valeur ledger (plus exacte)
+    //    et on garde la house_cut du movements (pas dans le ledger).
+    for (const l of ledgerStats) {
+      const existing = map.get(l.game_type);
+      if (existing) {
+        existing.bets_in = l.bets_in;
+        existing.payouts_out = l.payouts_out;
+        existing.refunds_out = l.refunds_out;
+        existing.net_profit = l.bets_in - l.payouts_out - l.refunds_out;
+        // count : max des deux (movements vs ledger)
+        existing.count = Math.max(existing.count, l.count);
+      } else {
+        map.set(l.game_type, {
+          game_type: l.game_type,
+          bets_in: l.bets_in,
+          payouts_out: l.payouts_out,
+          house_cut: 0,
+          refunds_out: l.refunds_out,
+          net_profit: l.net_profit,
+          count: l.count,
+        });
+      }
+    }
+
     return Array.from(map.values()).sort((a, b) => b.net_profit - a.net_profit);
   })();
 
