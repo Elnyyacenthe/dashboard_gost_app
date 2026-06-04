@@ -22,6 +22,11 @@ const GAMES_META: Record<string, { label: string; emoji: string; color: string }
   roulette:      { label: 'Roulette',      emoji: '🎯', color: '#16a34a' },
   ludo_v2:       { label: 'Ludo',          emoji: '🎮', color: '#3b82f6' },
   fantasy:       { label: 'Fantasy',       emoji: '⚽', color: '#10b981' },
+  penalty:       { label: 'Tirs au but',   emoji: '🥅', color: '#84cc16' },
+  slots_777:     { label: 'Big Win 777',   emoji: '🎰', color: '#fbbf24' },
+  wheel:         { label: 'Plugbet Wheel', emoji: '🎡', color: '#e91e63' },
+  sports:        { label: 'Paris sportifs',emoji: '🏆', color: '#f97316' },
+  virtual:       { label: 'Paris virtuels',emoji: '🤖', color: '#8b5cf6' },
 };
 
 interface MovementRow {

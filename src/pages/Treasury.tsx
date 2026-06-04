@@ -78,6 +78,7 @@ const gameLabels: Record<string, string> = {
   fantasy: 'Fantasy',
   penalty: 'Tirs au but',
   slots_777: 'Big Win 777',
+  wheel: 'Plugbet Wheel',
   sports: 'Paris sportifs',
   virtual: 'Paris virtuels',
   system: 'Système',

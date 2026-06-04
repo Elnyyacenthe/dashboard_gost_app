@@ -43,6 +43,7 @@ const GAMES_META: Record<string, { label: string; emoji: string }> = {
   fantasy:       { label: 'Fantasy League',  emoji: '⚽' },
   penalty:       { label: 'Tirs au but',     emoji: '🥅' },
   slots_777:     { label: 'Big Win 777',     emoji: '🎰' },
+  wheel:         { label: 'Plugbet Wheel',   emoji: '🎡' },
   sports:        { label: 'Paris sportifs',  emoji: '🏆' },
   virtual:       { label: 'Paris virtuels',  emoji: '🤖' },
 };

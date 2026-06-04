@@ -17,6 +17,7 @@ import Announcements from './pages/Announcements';
 import FinanceReport from './pages/FinanceReport';
 import Cashflow from './pages/Cashflow';
 import SlotsPage from './pages/Slots';
+import WheelPage from './pages/Wheel';
 import BetsPage from './pages/Bets';
 import NetworkHealthPage from './pages/NetworkHealth';
 
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="games" element={<GamesPage />} />
           <Route path="games/:gameId/replay" element={<GameReplay />} />
           <Route path="slots" element={<SlotsPage />} />
+          <Route path="wheel" element={<WheelPage />} />
           <Route path="bets" element={<BetsPage />} />
           <Route path="replay" element={<Replay />} />
           <Route path="analytics" element={<Analytics />} />
