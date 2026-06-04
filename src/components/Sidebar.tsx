@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Gamepad2, BarChart3, Settings, LogOut,
   MessageSquare, Vault, Scale, AlertTriangle, History, Megaphone,
-  FileSpreadsheet, TrendingUp, X,
+  FileSpreadsheet, TrendingUp, X, Cherry, Ticket, Activity,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
@@ -74,7 +74,10 @@ export default function Sidebar({ onSignOut, open = false, onClose }: SidebarPro
     { to: '/dashboard/overview',   icon: LayoutDashboard, label: 'Overview',     perm: 'nav.overview' },
     { to: '/dashboard/users',      icon: Users,           label: 'Utilisateurs', perm: 'nav.users' },
     { to: '/dashboard/games',      icon: Gamepad2,        label: 'Parties',      perm: 'nav.games' },
+    { to: '/dashboard/slots',      icon: Cherry,          label: 'Big Win 777',  perm: 'nav.games' },
+    { to: '/dashboard/bets',       icon: Ticket,          label: 'Paris',        perm: 'nav.games' },
     { to: '/dashboard/analytics',  icon: BarChart3,       label: 'Statistiques', perm: 'nav.analytics' },
+    { to: '/dashboard/network',    icon: Activity,        label: 'Réseau',       perm: 'nav.analytics' },
   ];
 
   const opsGroup: NavItem[] = [
