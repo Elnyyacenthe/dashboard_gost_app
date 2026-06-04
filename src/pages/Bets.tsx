@@ -32,6 +32,7 @@ export default function BetsPage() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
   const [statusFilter, setStatusFilter] = useState<'all' | BetRow['status']>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'real' | 'virtual'>('all');
   const [missing, setMissing] = useState(false);
 
   const fetch = useCallback(async () => {
@@ -75,35 +76,49 @@ export default function BetsPage() {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  // ── Agregats ─────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const total = bets.length;
-    const wagered = bets.reduce((s, b) => s + b.stake, 0);
-    const pending = bets.filter(b => b.status === 'pending').length;
-    const won = bets.filter(b => b.status === 'won').length;
-    const lost = bets.filter(b => b.status === 'lost').length;
-    const voided = bets.filter(b => b.status === 'void').length;
-    const wonPaid = bets.filter(b => b.status === 'won').reduce((s, b) => s + (b.actual_payout ?? 0), 0);
-    const pendingStakeAtRisk = bets.filter(b => b.status === 'pending').reduce((s, b) => s + b.stake, 0);
-    const lostStakeKept = bets.filter(b => b.status === 'lost').reduce((s, b) => s + b.stake, 0);
+  // ── Helper d'agregation reuse pour tout et par segment V/R ─
+  const aggregateBets = (rows: BetRow[]) => {
+    const total = rows.length;
+    const wagered = rows.reduce((s, b) => s + b.stake, 0);
+    const pending = rows.filter(b => b.status === 'pending').length;
+    const won = rows.filter(b => b.status === 'won').length;
+    const lost = rows.filter(b => b.status === 'lost').length;
+    const voided = rows.filter(b => b.status === 'void').length;
+    const wonPaid = rows.filter(b => b.status === 'won').reduce((s, b) => s + (b.actual_payout ?? 0), 0);
+    const pendingStakeAtRisk = rows.filter(b => b.status === 'pending').reduce((s, b) => s + b.stake, 0);
+    const lostStakeKept = rows.filter(b => b.status === 'lost').reduce((s, b) => s + b.stake, 0);
     const houseProfit = lostStakeKept - wonPaid;
-    const uniqueBettors = new Set(bets.map(b => b.user_id)).size;
-    const combineCount = bets.filter(b => b.bet_type === 'combine').length;
-    const simpleCount = bets.filter(b => b.bet_type === 'simple').length;
+    const uniqueBettors = new Set(rows.map(b => b.user_id)).size;
+    const combineCount = rows.filter(b => b.bet_type === 'combine').length;
+    const simpleCount = rows.filter(b => b.bet_type === 'simple').length;
     const settled = won + lost + voided;
     const winRate = settled > 0 ? (won / settled) * 100 : 0;
-
     return {
       total, wagered, pending, won, lost, voided, wonPaid,
       pendingStakeAtRisk, lostStakeKept, houseProfit, uniqueBettors,
       combineCount, simpleCount, settled, winRate,
     };
-  }, [bets]);
+  };
 
-  const filtered = useMemo(
-    () => statusFilter === 'all' ? bets : bets.filter(b => b.status === statusFilter),
-    [bets, statusFilter],
+  // ── Agregats ─────────────────────────────────────────────
+  const stats = useMemo(() => aggregateBets(bets), [bets]);
+  // Splits virtuel vs reel — pour les bandeaux comparatifs
+  const realStats = useMemo(
+    () => aggregateBets(bets.filter(b => !b.is_virtual)),
+    [bets],
   );
+  const virtualStats = useMemo(
+    () => aggregateBets(bets.filter(b => b.is_virtual)),
+    [bets],
+  );
+
+  const filtered = useMemo(() => {
+    let out = bets;
+    if (statusFilter !== 'all') out = out.filter(b => b.status === statusFilter);
+    if (typeFilter === 'real') out = out.filter(b => !b.is_virtual);
+    else if (typeFilter === 'virtual') out = out.filter(b => b.is_virtual);
+    return out;
+  }, [bets, statusFilter, typeFilter]);
 
   const statusPill = (s: BetRow['status']) => {
     const map: Record<BetRow['status'], { bg: string; text: string; label: string }> = {
@@ -232,22 +247,141 @@ export default function BetsPage() {
             </div>
           </div>
 
+          {/* Split Reels vs Virtuels */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Paris reels */}
+            <div className="exec-card p-5 border-l-4 border-blue-500">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-blue-700">
+                    🏟️ Paris RÉELS
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Matchs reels (StatPal / Sports)
+                  </p>
+                </div>
+                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
+                  {realStats.total} tickets
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mt-3">
+                <div>
+                  <p className="text-[10px] text-text-muted">Misé</p>
+                  <p className="text-lg font-black text-amber-600">{realStats.wagered.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-text-muted">Payé</p>
+                  <p className="text-lg font-black text-cyan-600">{realStats.wonPaid.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-text-muted">Net caisse</p>
+                  <p className={`text-lg font-black ${realStats.houseProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {realStats.houseProfit >= 0 ? '+' : ''}{realStats.houseProfit.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-4 text-xs">
+                <span className="text-text-muted">
+                  {realStats.pending} en attente
+                </span>
+                <span className="text-text-muted">·</span>
+                <span className="text-emerald-700">{realStats.won} gagnés</span>
+                <span className="text-text-muted">·</span>
+                <span className="text-rose-700">{realStats.lost} perdus</span>
+                <span className="text-text-muted">·</span>
+                <span className="text-text-muted">
+                  {realStats.uniqueBettors} joueurs
+                </span>
+              </div>
+            </div>
+
+            {/* Paris virtuels */}
+            <div className="exec-card p-5 border-l-4 border-violet-500">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-violet-700">
+                    🤖 Paris VIRTUELS
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Matchs simulés (Virtual Matches)
+                  </p>
+                </div>
+                <span className="rounded bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-700">
+                  {virtualStats.total} tickets
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mt-3">
+                <div>
+                  <p className="text-[10px] text-text-muted">Misé</p>
+                  <p className="text-lg font-black text-amber-600">{virtualStats.wagered.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-text-muted">Payé</p>
+                  <p className="text-lg font-black text-cyan-600">{virtualStats.wonPaid.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-text-muted">Net caisse</p>
+                  <p className={`text-lg font-black ${virtualStats.houseProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {virtualStats.houseProfit >= 0 ? '+' : ''}{virtualStats.houseProfit.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-4 text-xs">
+                <span className="text-text-muted">
+                  {virtualStats.pending} en attente
+                </span>
+                <span className="text-text-muted">·</span>
+                <span className="text-emerald-700">{virtualStats.won} gagnés</span>
+                <span className="text-text-muted">·</span>
+                <span className="text-rose-700">{virtualStats.lost} perdus</span>
+                <span className="text-text-muted">·</span>
+                <span className="text-text-muted">
+                  {virtualStats.uniqueBettors} joueurs
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Liste tickets */}
           <div className="exec-card p-5">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-text">Tickets récents</h2>
-              <div className="flex items-center gap-1">
-                {(['all', 'pending', 'won', 'lost', 'void'] as const).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${
-                      statusFilter === s ? 'bg-primary text-white' : 'bg-surface-lighter text-text-muted hover:bg-surface'
-                    }`}
-                  >
-                    {s === 'all' ? 'Tous' : s}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Filtre Reel / Virtuel */}
+                <div className="flex items-center gap-1">
+                  {([
+                    { v: 'all',     l: 'Tous',     cls: 'text-text-muted'  },
+                    { v: 'real',    l: '🏟️ Réels',   cls: 'text-blue-700'    },
+                    { v: 'virtual', l: '🤖 Virtuels', cls: 'text-violet-700' },
+                  ] as const).map(t => (
+                    <button
+                      key={t.v}
+                      onClick={() => setTypeFilter(t.v)}
+                      className={`rounded px-2 py-1 text-[10px] font-bold ${
+                        typeFilter === t.v
+                          ? 'bg-primary text-white'
+                          : `bg-surface-lighter ${t.cls} hover:bg-surface`
+                      }`}
+                    >
+                      {t.l}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-text-muted">|</span>
+                {/* Filtre statut */}
+                <div className="flex items-center gap-1">
+                  {(['all', 'pending', 'won', 'lost', 'void'] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setStatusFilter(s)}
+                      className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${
+                        statusFilter === s ? 'bg-primary text-white' : 'bg-surface-lighter text-text-muted hover:bg-surface'
+                      }`}
+                    >
+                      {s === 'all' ? 'Tous' : s}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {filtered.length === 0 ? (
