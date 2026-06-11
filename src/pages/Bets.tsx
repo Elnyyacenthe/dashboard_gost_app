@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Ticket, TrendingUp, TrendingDown, Clock, Award } from 'lucide-react';
 import StatsCard from '../components/StatsCard';
+import TicketLookup from '../components/TicketLookup';
 import { supabase } from '../lib/supabaseClient';
 
 interface BetRow {
@@ -158,6 +159,9 @@ export default function BetsPage() {
           </button>
         </div>
       </div>
+
+      {/* Lookup ticket par code (support client) */}
+      <TicketLookup />
 
       {missing ? (
         <div className="exec-card border-l-4 border-amber-500 p-5">
