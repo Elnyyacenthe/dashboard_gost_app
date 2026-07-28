@@ -20,6 +20,7 @@ import SlotsPage from './pages/Slots';
 import WheelPage from './pages/Wheel';
 import BetsPage from './pages/Bets';
 import NetworkHealthPage from './pages/NetworkHealth';
+import Affiliates from './pages/Affiliates';
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="cashflow" element={<Cashflow />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="announcements" element={<Announcements />} />
+          <Route path="affiliates" element={<Affiliates />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

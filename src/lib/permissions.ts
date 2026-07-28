@@ -23,6 +23,7 @@ export type Permission =
   | 'nav.cashflow'
   | 'nav.replay'
   | 'nav.support'
+  | 'nav.affiliates'
   | 'nav.settings'
   // Actions sensibles
   | 'action.broadcast_announcement'
@@ -36,7 +37,10 @@ export type Permission =
   | 'action.scan_fraud'
   | 'action.resolve_alert'
   | 'action.reply_ticket'
-  | 'action.export_data';
+  | 'action.export_data'
+  | 'action.manage_affiliates'
+  | 'action.decide_promo_code'
+  | 'action.decide_withdrawal';
 
 // ─── Matrice principale ─────────────────────────────────────
 const MATRIX: Record<Role, ReadonlySet<Permission>> = {
@@ -44,19 +48,23 @@ const MATRIX: Record<Role, ReadonlySet<Permission>> = {
     'nav.overview', 'nav.users', 'nav.games', 'nav.analytics',
     'nav.alerts', 'nav.announcements', 'nav.treasury', 'nav.audit',
     'nav.finance', 'nav.cashflow', 'nav.replay', 'nav.support', 'nav.settings',
+    'nav.affiliates',
     'action.broadcast_announcement', 'action.retract_announcement',
     'action.adjust_user_coins', 'action.block_user', 'action.change_user_role',
     'action.refund_game', 'action.treasury_transfer', 'action.modify_settings',
     'action.scan_fraud', 'action.resolve_alert', 'action.reply_ticket',
     'action.export_data',
+    'action.manage_affiliates', 'action.decide_promo_code', 'action.decide_withdrawal',
   ]),
   admin: new Set<Permission>([
     'nav.overview', 'nav.users', 'nav.games', 'nav.analytics',
     'nav.alerts', 'nav.announcements', 'nav.replay', 'nav.support',
+    'nav.affiliates',
     'action.broadcast_announcement', 'action.retract_announcement',
     'action.block_user', 'action.refund_game',
     'action.scan_fraud', 'action.resolve_alert', 'action.reply_ticket',
     'action.export_data',
+    'action.manage_affiliates', 'action.decide_promo_code', 'action.decide_withdrawal',
     // Pas de : treasury, audit, finance, settings, change_role,
     //         adjust_coins, treasury_transfer, modify_settings
   ]),
