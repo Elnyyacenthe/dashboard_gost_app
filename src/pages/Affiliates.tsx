@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
 import StatsCard from '../components/StatsCard';
 import DataTable from '../components/DataTable';
+import AffiliatePromoModeration from './AffiliatePromoModeration';
 
 interface AffiliateRow {
   id: string;
@@ -57,6 +58,7 @@ const tierBadge: Record<AffiliateRow['tier'], string> = {
 
 export default function Affiliates() {
   const { isAdmin, loading: authLoading } = useAuth();
+  const [tab, setTab] = useState<'affiliates' | 'codes'>('affiliates');
   const [rows, setRows] = useState<AffiliateRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -157,31 +159,55 @@ export default function Affiliates() {
     <div className="animate-fade-in space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-text">Affiliés</h1>
-        <p className="text-sm text-text-muted">Programme d'affiliation PlugBet — vue d'ensemble.</p>
+        <p className="text-sm text-text-muted">Programme d'affiliation PlugBet.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatsCard title="Affiliés" value={kpis.total} icon={<Handshake className="h-5 w-5" />} variant="green" />
-        <StatsCard title="Actifs" value={kpis.active} icon={<Users className="h-5 w-5" />} variant="blue" />
-        <StatsCard title="Suspendus / bannis" value={kpis.suspended} icon={<Clock className="h-5 w-5" />} variant="amber" />
-        <StatsCard title="Dû (disponible)" value={fcfa(kpis.owed)} icon={<Wallet className="h-5 w-5" />} variant="violet" />
+      {/* Onglets */}
+      <div className="flex gap-1 rounded-xl border border-border/30 bg-surface p-1 w-fit">
+        {([
+          { key: 'affiliates', label: 'Affiliés' },
+          { key: 'codes', label: 'Codes promo' },
+        ] as const).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`rounded-lg px-4 py-1.5 text-sm font-bold transition ${
+              tab === t.key ? 'bg-primary text-white' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
-        {loading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      {tab === 'affiliates' && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatsCard title="Affiliés" value={kpis.total} icon={<Handshake className="h-5 w-5" />} variant="green" />
+            <StatsCard title="Actifs" value={kpis.active} icon={<Users className="h-5 w-5" />} variant="blue" />
+            <StatsCard title="Suspendus / bannis" value={kpis.suspended} icon={<Clock className="h-5 w-5" />} variant="amber" />
+            <StatsCard title="Dû (disponible)" value={fcfa(kpis.owed)} icon={<Wallet className="h-5 w-5" />} variant="violet" />
           </div>
-        ) : (
-          <DataTable
-            data={rows as unknown as Record<string, unknown>[]}
-            columns={columns as never}
-            searchPlaceholder="Rechercher un affilié…"
-            searchKey="username"
-            pageSize={12}
-          />
-        )}
-      </div>
+
+          <div className="rounded-2xl border border-border/30 bg-surface-light p-6">
+            {loading ? (
+              <div className="flex h-40 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <DataTable
+                data={rows as unknown as Record<string, unknown>[]}
+                columns={columns as never}
+                searchPlaceholder="Rechercher un affilié…"
+                searchKey="username"
+                pageSize={12}
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      {tab === 'codes' && <AffiliatePromoModeration />}
     </div>
   );
 }
