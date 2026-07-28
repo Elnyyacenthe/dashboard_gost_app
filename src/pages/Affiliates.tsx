@@ -18,6 +18,7 @@ import DataTable from '../components/DataTable';
 import AffiliatePromoModeration from './AffiliatePromoModeration';
 import AffiliateWithdrawals from './AffiliateWithdrawals';
 import AffiliateTickets from './AffiliateTickets';
+import AffiliateMarketing from './AffiliateMarketing';
 
 interface AffiliateRow {
   id: string;
@@ -60,7 +61,7 @@ const tierBadge: Record<AffiliateRow['tier'], string> = {
 
 export default function Affiliates() {
   const { isAdmin, loading: authLoading } = useAuth();
-  const [tab, setTab] = useState<'affiliates' | 'codes' | 'withdrawals' | 'tickets'>('affiliates');
+  const [tab, setTab] = useState<'affiliates' | 'codes' | 'withdrawals' | 'tickets' | 'marketing'>('affiliates');
   const [rows, setRows] = useState<AffiliateRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -204,6 +205,7 @@ export default function Affiliates() {
           { key: 'codes', label: 'Codes promo' },
           { key: 'withdrawals', label: 'Retraits' },
           { key: 'tickets', label: 'Messagerie' },
+          { key: 'marketing', label: 'Marketing' },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -249,6 +251,8 @@ export default function Affiliates() {
       {tab === 'withdrawals' && <AffiliateWithdrawals />}
 
       {tab === 'tickets' && <AffiliateTickets />}
+
+      {tab === 'marketing' && <AffiliateMarketing />}
     </div>
   );
 }
