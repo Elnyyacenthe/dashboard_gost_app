@@ -16,6 +16,7 @@ import { useAuth } from '../lib/hooks/useAuth';
 import StatsCard from '../components/StatsCard';
 import DataTable from '../components/DataTable';
 import AffiliatePromoModeration from './AffiliatePromoModeration';
+import AffiliateWithdrawals from './AffiliateWithdrawals';
 
 interface AffiliateRow {
   id: string;
@@ -58,7 +59,7 @@ const tierBadge: Record<AffiliateRow['tier'], string> = {
 
 export default function Affiliates() {
   const { isAdmin, loading: authLoading } = useAuth();
-  const [tab, setTab] = useState<'affiliates' | 'codes'>('affiliates');
+  const [tab, setTab] = useState<'affiliates' | 'codes' | 'withdrawals'>('affiliates');
   const [rows, setRows] = useState<AffiliateRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,6 +105,28 @@ export default function Affiliates() {
       </div>
     );
   }
+
+  const adjustCommission = async (a: AffiliateRow) => {
+    const raw = window.prompt(`Ajustement de commission pour ${a.username ?? ''} (montant en FCFA, négatif possible) :`, '0');
+    if (raw === null) return;
+    const delta = parseInt(raw, 10);
+    if (!Number.isFinite(delta) || delta === 0) {
+      alert('Montant invalide.');
+      return;
+    }
+    const reason = window.prompt('Motif de l\'ajustement (obligatoire) :');
+    if (!reason || reason.trim().length < 3) return;
+    const { data, error } = await supabase.rpc('admin_adjust_commission', {
+      p_affiliate_id: a.id,
+      p_delta: delta,
+      p_reason: reason.trim(),
+    });
+    if (error || data?.success === false) {
+      alert('Erreur : ' + (error?.message ?? data?.error ?? 'inconnu'));
+      return;
+    }
+    await load();
+  };
 
   const columns = [
     {
@@ -153,6 +176,17 @@ export default function Affiliates() {
       header: 'Inscrit le',
       render: (a: AffiliateRow) => format(new Date(a.created_at), 'dd/MM/yyyy', { locale: fr }),
     },
+    {
+      key: 'actions',
+      header: '',
+      render: (a: AffiliateRow) => (
+        <div className="flex justify-end">
+          <button onClick={() => adjustCommission(a)} className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs">
+            Ajuster
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -167,6 +201,7 @@ export default function Affiliates() {
         {([
           { key: 'affiliates', label: 'Affiliés' },
           { key: 'codes', label: 'Codes promo' },
+          { key: 'withdrawals', label: 'Retraits' },
         ] as const).map((t) => (
           <button
             key={t.key}
@@ -208,6 +243,8 @@ export default function Affiliates() {
       )}
 
       {tab === 'codes' && <AffiliatePromoModeration />}
+
+      {tab === 'withdrawals' && <AffiliateWithdrawals />}
     </div>
   );
 }
