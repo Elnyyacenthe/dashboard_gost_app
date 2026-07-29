@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Gamepad2, BarChart3, Settings, LogOut,
   MessageSquare, Vault, Scale, AlertTriangle, History, Megaphone,
-  FileSpreadsheet, TrendingUp, X, Cherry, Ticket, Activity, Disc3, Handshake, Radio,
+  FileSpreadsheet, TrendingUp, X, Cherry, Ticket, Activity, Disc3, Handshake, Radio, Coins,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
@@ -95,6 +95,7 @@ export default function Sidebar({ onSignOut, open = false, onClose }: SidebarPro
     { to: '/dashboard/audit',     icon: Scale,            label: 'Comptabilité', perm: 'nav.audit' },
     { to: '/dashboard/cashflow',  icon: TrendingUp,       label: 'Cashflow',     perm: 'nav.cashflow' },
     { to: '/dashboard/finance',   icon: FileSpreadsheet,  label: 'Rapport finance', perm: 'nav.finance' },
+    { to: '/dashboard/fx',        icon: Coins,            label: 'Taux de change', perm: 'nav.settings' },
     { to: '/dashboard/settings',  icon: Settings,         label: 'Paramètres',   perm: 'nav.settings' },
   ];
 
