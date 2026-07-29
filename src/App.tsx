@@ -21,6 +21,7 @@ import WheelPage from './pages/Wheel';
 import BetsPage from './pages/Bets';
 import NetworkHealthPage from './pages/NetworkHealth';
 import Affiliates from './pages/Affiliates';
+import OddsMonitor from './pages/OddsMonitor';
 
 export default function App() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="announcements" element={<Announcements />} />
           <Route path="affiliates" element={<Affiliates />} />
+          <Route path="odds" element={<OddsMonitor />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
