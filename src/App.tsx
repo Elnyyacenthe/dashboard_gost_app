@@ -22,6 +22,7 @@ import BetsPage from './pages/Bets';
 import NetworkHealthPage from './pages/NetworkHealth';
 import Affiliates from './pages/Affiliates';
 import OddsMonitor from './pages/OddsMonitor';
+import OddsPapi from './pages/OddsPapi';
 import FxRates from './pages/FxRates';
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="announcements" element={<Announcements />} />
           <Route path="affiliates" element={<Affiliates />} />
           <Route path="odds" element={<OddsMonitor />} />
+          <Route path="oddspapi" element={<OddsPapi />} />
           <Route path="fx" element={<FxRates />} />
           <Route path="settings" element={<Settings />} />
         </Route>

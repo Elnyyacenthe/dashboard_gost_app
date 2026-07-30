@@ -25,6 +25,7 @@ export type Permission =
   | 'nav.support'
   | 'nav.affiliates'
   | 'nav.odds'
+  | 'nav.oddspapi'
   | 'nav.settings'
   // Actions sensibles
   | 'action.broadcast_announcement'
@@ -49,7 +50,7 @@ const MATRIX: Record<Role, ReadonlySet<Permission>> = {
     'nav.overview', 'nav.users', 'nav.games', 'nav.analytics',
     'nav.alerts', 'nav.announcements', 'nav.treasury', 'nav.audit',
     'nav.finance', 'nav.cashflow', 'nav.replay', 'nav.support', 'nav.settings',
-    'nav.affiliates', 'nav.odds',
+    'nav.affiliates', 'nav.odds', 'nav.oddspapi',
     'action.broadcast_announcement', 'action.retract_announcement',
     'action.adjust_user_coins', 'action.block_user', 'action.change_user_role',
     'action.refund_game', 'action.treasury_transfer', 'action.modify_settings',
@@ -60,7 +61,7 @@ const MATRIX: Record<Role, ReadonlySet<Permission>> = {
   admin: new Set<Permission>([
     'nav.overview', 'nav.users', 'nav.games', 'nav.analytics',
     'nav.alerts', 'nav.announcements', 'nav.replay', 'nav.support',
-    'nav.affiliates', 'nav.odds',
+    'nav.affiliates', 'nav.odds', 'nav.oddspapi',
     'action.broadcast_announcement', 'action.retract_announcement',
     'action.block_user', 'action.refund_game',
     'action.scan_fraud', 'action.resolve_alert', 'action.reply_ticket',

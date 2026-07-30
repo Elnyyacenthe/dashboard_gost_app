@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Gamepad2, BarChart3, Settings, LogOut,
   MessageSquare, Vault, Scale, AlertTriangle, History, Megaphone,
-  FileSpreadsheet, TrendingUp, X, Cherry, Ticket, Activity, Disc3, Handshake, Radio, Coins,
+  FileSpreadsheet, TrendingUp, X, Cherry, Ticket, Activity, Disc3, Handshake, Radio, Coins, PlugZap,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
@@ -88,6 +88,7 @@ export default function Sidebar({ onSignOut, open = false, onClose }: SidebarPro
     { to: '/dashboard/support',        icon: MessageSquare, label: 'Service Client', badge: unreadSupport, perm: 'nav.support' },
     { to: '/dashboard/affiliates',     icon: Handshake,     label: 'Affiliés',       perm: 'nav.affiliates' },
     { to: '/dashboard/odds',           icon: Radio,         label: 'Ingestion Odds', perm: 'nav.odds' },
+    { to: '/dashboard/oddspapi',       icon: PlugZap,       label: 'OddsPapi',       perm: 'nav.oddspapi' },
   ];
 
   const adminGroup: NavItem[] = [
