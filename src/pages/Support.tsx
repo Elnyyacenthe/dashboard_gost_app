@@ -50,7 +50,7 @@ function CatBadge({ category }: { category: TicketCategory }) {
 type StatusFilter = 'all' | TicketStatus;
 
 export default function SupportPage() {
-  const { profile } = useAuth();
+  const { profile, hasPerm } = useAuth();
 
   const [tickets, setTickets]           = useState<SupportTicket[]>([]);
   const [messages, setMessages]         = useState<SupportMessage[]>([]);
@@ -337,14 +337,16 @@ export default function SupportPage() {
 
             {/* Boutons statut */}
             <div className="flex items-center gap-2 shrink-0 ml-4">
-              <button
-                type="button"
-                onClick={() => setShowRefund(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-warning/30 bg-warning/5 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/15 transition-colors"
-                title="Émettre un remboursement"
-              >
-                <Coins className="h-3 w-3" /> Refund
-              </button>
+              {hasPerm('action.refund_game') && (
+                <button
+                  type="button"
+                  onClick={() => setShowRefund(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-warning/30 bg-warning/5 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/15 transition-colors"
+                  title="Émettre un remboursement"
+                >
+                  <Coins className="h-3 w-3" /> Refund
+                </button>
+              )}
               {selectedTicket.status !== 'closed' && (
                 <button
                   type="button"

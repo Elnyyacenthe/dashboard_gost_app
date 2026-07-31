@@ -6,7 +6,7 @@
 // page sensible pour cacher boutons et bloquer accès direct.
 // ============================================================
 
-export type Role = 'super_admin' | 'admin' | 'moderator' | 'user';
+export type Role = 'super_admin' | 'admin' | 'moderator' | 'support' | 'user';
 
 // ─── Actions / sections du dashboard ────────────────────────
 export type Permission =
@@ -76,8 +76,31 @@ const MATRIX: Record<Role, ReadonlySet<Permission>> = {
     'action.resolve_alert', 'action.reply_ticket',
     // Read-only : Users/Games/Analytics oui mais pas d'actions destructrices
   ]),
+  // Agent de support : accès UNIQUEMENT à la messagerie utilisateurs.
+  // Aucune autre page, aucune action financière (pas de refund/ajustement).
+  support: new Set<Permission>([
+    'nav.support',
+    'action.reply_ticket',
+  ]),
   user: new Set<Permission>([]), // Aucun accès dashboard
 };
+
+// Liste des permissions de navigation (une par page de la sidebar).
+// Sert de source unique pour "ce rôle a-t-il accès au dashboard ?".
+export const NAV_PERMS: Permission[] = [
+  'nav.overview', 'nav.users', 'nav.games', 'nav.analytics', 'nav.alerts',
+  'nav.announcements', 'nav.treasury', 'nav.audit', 'nav.finance',
+  'nav.cashflow', 'nav.replay', 'nav.support', 'nav.affiliates',
+  'nav.odds', 'nav.oddspapi', 'nav.settings',
+];
+
+/**
+ * Un rôle a-t-il accès au dashboard ? = possède au moins une page de nav.
+ * Future-proof : tout nouveau rôle avec une perm nav.* est automatiquement admis.
+ */
+export function hasDashboardAccess(role: Role | string | null | undefined): boolean {
+  return NAV_PERMS.some(p => can(role, p));
+}
 
 // ─── Helpers publiques ──────────────────────────────────────
 
@@ -120,6 +143,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   super_admin: 'Super Admin',
   admin: 'Admin',
   moderator: 'Modérateur',
+  support: 'Support',
   user: 'Joueur',
 };
 
@@ -130,6 +154,7 @@ export const ROLE_RANK: Record<Role, number> = {
   super_admin: 100,
   admin: 50,
   moderator: 25,
+  support: 10,
   user: 0,
 };
 

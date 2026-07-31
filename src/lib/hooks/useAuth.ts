@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Profile } from '../../types';
-import { can, type Permission, type Role } from '../permissions';
+import { can, hasDashboardAccess, type Permission, type Role } from '../permissions';
 
 interface AuthState {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthState {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isModerator: boolean;
+  isSupport: boolean;
 }
 
 export function useAuth() {
@@ -23,6 +24,7 @@ export function useAuth() {
     isAdmin: false,
     isSuperAdmin: false,
     isModerator: false,
+    isSupport: false,
   });
 
   // Cache en mémoire : évite de re-fetcher si déjà chargé
@@ -85,10 +87,11 @@ export function useAuth() {
           isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
           isSuperAdmin: profile?.role === 'super_admin',
           isModerator: profile?.role === 'moderator',
+          isSupport: profile?.role === 'support',
         });
         sessionResolved = true;
       } else {
-        setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
+        setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false, isSupport: false });
         sessionResolved = true;
       }
     };
@@ -100,7 +103,7 @@ export function useAuth() {
         console.error('[useAuth] getSession failed:', err);
         if (mounted && !sessionResolved) {
           // Vraiment échec : on déclare la session null pour permettre redirect
-          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
+          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false, isSupport: false });
           sessionResolved = true;
         }
       });
@@ -122,7 +125,7 @@ export function useAuth() {
           await applySession(session);
         } else if (event === 'SIGNED_OUT') {
           profileCache.current.clear();
-          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false });
+          setAuthState({ user: null, profile: null, session: null, loading: false, isAdmin: false, isSuperAdmin: false, isModerator: false, isSupport: false });
           sessionResolved = true;
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           setAuthState(prev => ({ ...prev, session }));
@@ -153,9 +156,11 @@ export function useAuth() {
       );
     }
 
-    if (profile.role !== 'admin' && profile.role !== 'super_admin' && profile.role !== 'moderator') {
+    // Admis si le rôle possède au moins une page du dashboard (super_admin,
+    // admin, moderator, support…). Un simple joueur est refusé.
+    if (!hasDashboardAccess(profile.role)) {
       await supabase.auth.signOut();
-      throw new Error(`Accès refusé. Rôle actuel : "${profile.role}". Rôle requis : admin, super_admin ou moderator.`);
+      throw new Error(`Accès refusé. Rôle actuel : "${profile.role}". Ce compte n'a pas accès au dashboard.`);
     }
 
     return { user: data.user, profile };

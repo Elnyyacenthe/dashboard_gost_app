@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import AdminLayout from './layouts/AdminLayout';
 import Login from './pages/Login';
 import Overview from './pages/Overview';
@@ -24,6 +25,52 @@ import Affiliates from './pages/Affiliates';
 import OddsMonitor from './pages/OddsMonitor';
 import OddsPapi from './pages/OddsPapi';
 import FxRates from './pages/FxRates';
+import { useAuth } from './lib/hooks/useAuth';
+import { can, type Permission, type Role } from './lib/permissions';
+
+// ── Garde par route : redirige si le rôle courant n'a pas la permission ──
+// Défense en profondeur : la sidebar cache déjà les liens, mais sans cette
+// garde un rôle restreint (ex: support) pourrait ouvrir /dashboard/treasury
+// par URL directe. On le renvoie vers sa page d'accueil autorisée.
+const HOME_PRIORITY: Array<[string, Permission]> = [
+  ['overview', 'nav.overview'],
+  ['support', 'nav.support'],
+  ['users', 'nav.users'],
+  ['games', 'nav.games'],
+  ['analytics', 'nav.analytics'],
+  ['alerts', 'nav.alerts'],
+  ['affiliates', 'nav.affiliates'],
+  ['odds', 'nav.odds'],
+  ['oddspapi', 'nav.oddspapi'],
+  ['treasury', 'nav.treasury'],
+  ['finance', 'nav.finance'],
+  ['cashflow', 'nav.cashflow'],
+  ['audit', 'nav.audit'],
+  ['announcements', 'nav.announcements'],
+  ['replay', 'nav.replay'],
+  ['settings', 'nav.settings'],
+];
+
+function defaultRouteFor(role: Role | string | null | undefined): string {
+  const found = HOME_PRIORITY.find(([, perm]) => can(role, perm));
+  return found ? found[0] : 'support';
+}
+
+function Guard({ perm, children }: { perm: Permission; children: ReactNode }) {
+  const { profile, loading } = useAuth();
+  if (loading) return null;
+  const role = profile?.role as Role | undefined;
+  if (!can(role, perm)) {
+    return <Navigate to={`/dashboard/${defaultRouteFor(role)}`} replace />;
+  }
+  return <>{children}</>;
+}
+
+function RoleHome() {
+  const { profile, loading } = useAuth();
+  if (loading) return null;
+  return <Navigate to={defaultRouteFor(profile?.role)} replace />;
+}
 
 export default function App() {
   return (
@@ -31,30 +78,30 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<AdminLayout />}>
-          <Route index element={<Navigate to="overview" replace />} />
-          <Route path="overview" element={<Overview />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="users/:id" element={<UserDetail />} />
-          <Route path="games" element={<GamesPage />} />
-          <Route path="games/:gameId/replay" element={<GameReplay />} />
-          <Route path="slots" element={<SlotsPage />} />
-          <Route path="wheel" element={<WheelPage />} />
-          <Route path="bets" element={<BetsPage />} />
-          <Route path="replay" element={<Replay />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="network" element={<NetworkHealthPage />} />
-          <Route path="support" element={<SupportPage />} />
-          <Route path="treasury" element={<TreasuryPage />} />
-          <Route path="audit" element={<AuditPage />} />
-          <Route path="finance" element={<FinanceReport />} />
-          <Route path="cashflow" element={<Cashflow />} />
-          <Route path="alerts" element={<AlertsPage />} />
-          <Route path="announcements" element={<Announcements />} />
-          <Route path="affiliates" element={<Affiliates />} />
-          <Route path="odds" element={<OddsMonitor />} />
-          <Route path="oddspapi" element={<OddsPapi />} />
-          <Route path="fx" element={<FxRates />} />
-          <Route path="settings" element={<Settings />} />
+          <Route index element={<RoleHome />} />
+          <Route path="overview" element={<Guard perm="nav.overview"><Overview /></Guard>} />
+          <Route path="users" element={<Guard perm="nav.users"><UsersPage /></Guard>} />
+          <Route path="users/:id" element={<Guard perm="nav.users"><UserDetail /></Guard>} />
+          <Route path="games" element={<Guard perm="nav.games"><GamesPage /></Guard>} />
+          <Route path="games/:gameId/replay" element={<Guard perm="nav.games"><GameReplay /></Guard>} />
+          <Route path="slots" element={<Guard perm="nav.games"><SlotsPage /></Guard>} />
+          <Route path="wheel" element={<Guard perm="nav.games"><WheelPage /></Guard>} />
+          <Route path="bets" element={<Guard perm="nav.games"><BetsPage /></Guard>} />
+          <Route path="replay" element={<Guard perm="nav.replay"><Replay /></Guard>} />
+          <Route path="analytics" element={<Guard perm="nav.analytics"><Analytics /></Guard>} />
+          <Route path="network" element={<Guard perm="nav.overview"><NetworkHealthPage /></Guard>} />
+          <Route path="support" element={<Guard perm="nav.support"><SupportPage /></Guard>} />
+          <Route path="treasury" element={<Guard perm="nav.treasury"><TreasuryPage /></Guard>} />
+          <Route path="audit" element={<Guard perm="nav.audit"><AuditPage /></Guard>} />
+          <Route path="finance" element={<Guard perm="nav.finance"><FinanceReport /></Guard>} />
+          <Route path="cashflow" element={<Guard perm="nav.cashflow"><Cashflow /></Guard>} />
+          <Route path="alerts" element={<Guard perm="nav.alerts"><AlertsPage /></Guard>} />
+          <Route path="announcements" element={<Guard perm="nav.announcements"><Announcements /></Guard>} />
+          <Route path="affiliates" element={<Guard perm="nav.affiliates"><Affiliates /></Guard>} />
+          <Route path="odds" element={<Guard perm="nav.odds"><OddsMonitor /></Guard>} />
+          <Route path="oddspapi" element={<Guard perm="nav.oddspapi"><OddsPapi /></Guard>} />
+          <Route path="fx" element={<Guard perm="nav.oddspapi"><FxRates /></Guard>} />
+          <Route path="settings" element={<Guard perm="nav.settings"><Settings /></Guard>} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

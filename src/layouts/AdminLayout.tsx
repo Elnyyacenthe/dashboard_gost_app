@@ -3,9 +3,10 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import { useAuth } from '../lib/hooks/useAuth';
+import { hasDashboardAccess } from '../lib/permissions';
 
 export default function AdminLayout() {
-  const { user, profile, loading, isAdmin, isSuperAdmin, isModerator, signOut } = useAuth();
+  const { user, profile, loading, isSuperAdmin, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -22,9 +23,8 @@ export default function AdminLayout() {
     );
   }
 
-  // Bloquer accès si pas un rôle dashboard
-  const hasAnyAccess = isAdmin || isSuperAdmin || isModerator;
-  if (!user || !hasAnyAccess) {
+  // Bloquer accès si le rôle n'ouvre aucune page du dashboard
+  if (!user || !hasDashboardAccess(profile?.role)) {
     return <Navigate to="/login" replace />;
   }
 
