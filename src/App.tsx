@@ -34,11 +34,10 @@ import { can, type Permission, type Role } from './lib/permissions';
 // par URL directe. On le renvoie vers sa page d'accueil autorisée.
 const HOME_PRIORITY: Array<[string, Permission]> = [
   ['overview', 'nav.overview'],
-  ['support', 'nav.support'],
   ['users', 'nav.users'],
-  ['games', 'nav.games'],
   ['analytics', 'nav.analytics'],
-  ['alerts', 'nav.alerts'],
+  ['games', 'nav.games'],
+  ['support', 'nav.support'],
   ['affiliates', 'nav.affiliates'],
   ['odds', 'nav.odds'],
   ['oddspapi', 'nav.oddspapi'],
@@ -47,6 +46,7 @@ const HOME_PRIORITY: Array<[string, Permission]> = [
   ['cashflow', 'nav.cashflow'],
   ['audit', 'nav.audit'],
   ['announcements', 'nav.announcements'],
+  ['alerts', 'nav.alerts'],
   ['replay', 'nav.replay'],
   ['settings', 'nav.settings'],
 ];

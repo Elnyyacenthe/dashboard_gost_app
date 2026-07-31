@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert, ShieldCheck, RotateCcw, Eye,
-  UserPlus, Crown, Shield, User, X, Check, Loader2, Wallet, LifeBuoy
+  UserPlus, Crown, Shield, User, X, Check, Loader2, Wallet, LifeBuoy,
+  Banknote, TrendingUp, MessageSquare, Share2, BarChart3
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -12,12 +13,23 @@ import { useAuth } from '../lib/hooks/useAuth';
 import type { Profile } from '../types';
 
 type Tab = 'players' | 'team';
-type Role = 'super_admin' | 'admin' | 'moderator' | 'support' | 'user';
+type Role = 'super_admin' | 'admin' | 'finance' | 'trading' | 'community'
+          | 'affiliation' | 'moderator' | 'analyst' | 'support' | 'user';
+
+// Rôles assignables depuis le dashboard (hors 'user' = joueur / 'super_admin').
+const ASSIGNABLE_ROLES: Role[] = [
+  'support', 'analyst', 'community', 'affiliation', 'trading', 'finance', 'moderator', 'admin',
+];
 
 const roleConfig: Record<Role, { label: string; color: string; icon: React.ReactNode }> = {
   super_admin: { label: 'Super Admin', color: 'bg-warning/15 text-warning',          icon: <Crown className="h-3 w-3" /> },
   admin:       { label: 'Admin',       color: 'bg-primary/15 text-primary',           icon: <Crown className="h-3 w-3" /> },
+  finance:     { label: 'Finance',     color: 'bg-success/15 text-success',           icon: <Banknote className="h-3 w-3" /> },
+  trading:     { label: 'Trading',     color: 'bg-warning/15 text-warning',           icon: <TrendingUp className="h-3 w-3" /> },
+  community:   { label: 'Communauté',  color: 'bg-info/15 text-info',                 icon: <MessageSquare className="h-3 w-3" /> },
+  affiliation: { label: 'Affiliation', color: 'bg-primary/15 text-primary',           icon: <Share2 className="h-3 w-3" /> },
   moderator:   { label: 'Modérateur',  color: 'bg-info/15 text-info',                 icon: <Shield className="h-3 w-3" /> },
+  analyst:     { label: 'Analyste',    color: 'bg-info/15 text-info',                 icon: <BarChart3 className="h-3 w-3" /> },
   support:     { label: 'Support',     color: 'bg-info/15 text-info',                 icon: <LifeBuoy className="h-3 w-3" /> },
   user:        { label: 'Joueur',      color: 'bg-surface-lighter text-text-muted',   icon: <User className="h-3 w-3" /> },
 };
@@ -222,12 +234,13 @@ function UserDetailModal({ user, onClose, onRefresh }: {
           {/* Rôle */}
           <div className="rounded-xl bg-surface p-4">
             <p className="mb-3 text-sm font-medium text-text">Changer le rôle</p>
-            <div className="flex gap-2">
-              {(['user', 'support', 'moderator', 'admin'] as Role[]).map(r => (
+            <div className="flex flex-wrap gap-2">
+              {(['user', ...ASSIGNABLE_ROLES] as Role[]).map(r => (
                 <button key={r} onClick={() => setSelectedRole(r)}
-                  className={`flex-1 rounded-lg py-2 text-xs font-medium transition-all ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
                     selectedRole === r ? 'bg-primary text-white' : 'border border-border/30 text-text-muted hover:bg-surface-lighter'
                   }`}>
+                  {roleConfig[r].icon}
                   {roleConfig[r].label}
                 </button>
               ))}
@@ -267,7 +280,7 @@ function UserDetailModal({ user, onClose, onRefresh }: {
 // Modal ajouter membre
 function InviteModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: () => void }) {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'moderator' | 'support'>('moderator');
+  const [role, setRole] = useState<Role>('support');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -332,10 +345,10 @@ function InviteModal({ onClose, onRefresh }: { onClose: () => void; onRefresh: (
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-text-muted">Rôle</label>
-            <div className="flex gap-2">
-              {(['support', 'moderator', 'admin'] as const).map(r => (
+            <div className="flex flex-wrap gap-2">
+              {ASSIGNABLE_ROLES.map(r => (
                 <button key={r} type="button" onClick={() => setRole(r)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-all ${
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
                     role === r ? 'bg-primary text-white' : 'border border-border/30 text-text-muted hover:bg-surface-lighter'
                   }`}>
                   {roleConfig[r].icon}
@@ -377,7 +390,8 @@ export default function UsersPage() {
       .from('user_profiles').select('*').order('created_at', { ascending: false });
     if (data) {
       setPlayers((data as Profile[]).filter(p => p.role === 'user'));
-      setTeam((data as Profile[]).filter(p => p.role === 'admin' || p.role === 'moderator' || p.role === 'support' || p.role === 'super_admin'));
+      // Équipe = tout rôle staff (tout sauf le joueur simple).
+      setTeam((data as Profile[]).filter(p => p.role !== 'user'));
     }
     setLoading(false);
   }, []);
