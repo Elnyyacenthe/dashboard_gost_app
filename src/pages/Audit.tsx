@@ -52,6 +52,20 @@ interface GameTreasury {
   total_paid_out: number;
 }
 
+// Verdict d'equilibre : source unique = RPC reconcile_money_system.
+interface ReconResult {
+  user_coins: number;
+  admin_balance: number;
+  game_treasury_balance: number;
+  total_in_system: number;
+  deposits_total: number;
+  withdrawals_total: number;
+  external_net: number;
+  baseline: number;
+  drift: number;
+  consistent: boolean;
+}
+
 const movementLabels: Record<string, string> = {
   loss_collect: 'Mise reçue',
   payout: 'Paiement gagnant',
@@ -68,13 +82,14 @@ export default function AuditPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [admin, setAdmin] = useState<AdminTreasury | null>(null);
   const [gameTreasury, setGameTreasury] = useState<GameTreasury | null>(null);
+  const [recon, setRecon] = useState<ReconResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [mvRes, fmRes, uRes, aRes, gRes] = await Promise.all([
+    const [mvRes, fmRes, uRes, aRes, gRes, rRes] = await Promise.all([
       supabase.from('treasury_movements').select('*')
         .order('created_at', { ascending: false }).limit(10000),
       supabase.from('kpay_transactions').select('*')
@@ -82,12 +97,14 @@ export default function AuditPage() {
       supabase.from('user_profiles').select('id, username, coins').limit(5000),
       supabase.from('admin_treasury').select('*').eq('id', 1).maybeSingle(),
       supabase.from('game_treasury').select('*').eq('id', 1).maybeSingle(),
+      supabase.rpc('reconcile_money_system'),
     ]);
     if (mvRes.data) setMovements(mvRes.data as MovementRow[]);
     if (fmRes.data) setFreemoTxs(fmRes.data as FreemoTxRow[]);
     if (uRes.data) setUsers(uRes.data as UserRow[]);
     if (aRes.data) setAdmin(aRes.data as AdminTreasury);
     if (gRes.data) setGameTreasury(gRes.data as GameTreasury);
+    if (!rRes.error && rRes.data) setRecon(rRes.data as ReconResult);
     setLoading(false);
   }, []);
 
@@ -103,23 +120,27 @@ export default function AuditPage() {
     return m;
   }, [users]);
 
-  // ── Calculs zero-sum ──
-  const totalUserCoins = users.reduce((s, u) => s + (u.coins ?? 0), 0);
-  const adminBalance = admin?.balance ?? 0;
-  const gameBalance = gameTreasury?.balance ?? 0;
-  const totalSystemCoins = totalUserCoins + adminBalance + gameBalance;
+  // ── Verdict zero-sum : source unique = RPC reconcile_money_system ──
+  // (caisses VIVANTES game+admin, K-Pay + FreemoPay, argent offert modelise via
+  // baseline). Repli sur le calcul JS local si la RPC n'a pas repondu.
+  const totalUserCoins = recon ? recon.user_coins : users.reduce((s, u) => s + (u.coins ?? 0), 0);
+  const adminBalance = recon ? recon.admin_balance : (admin?.balance ?? 0);
+  const gameBalance = recon ? recon.game_treasury_balance : (gameTreasury?.balance ?? 0);
+  const totalSystemCoins = recon ? recon.total_in_system : totalUserCoins + adminBalance + gameBalance;
 
-  // Real money entered/exited via Mobile Money (succès uniquement)
-  const realMoneyIn = freemoTxs
-    .filter(t => t.transaction_type === 'DEPOSIT' && t.status === 'SUCCESS')
-    .reduce((s, t) => s + t.amount, 0);
-  const realMoneyOut = freemoTxs
-    .filter(t => t.transaction_type === 'WITHDRAW' && t.status === 'SUCCESS')
-    .reduce((s, t) => s + t.amount, 0);
+  // Vrai argent entre/sorti (les DEUX fournisseurs, succès uniquement)
+  const realMoneyIn = recon
+    ? recon.deposits_total
+    : freemoTxs.filter(t => t.transaction_type === 'DEPOSIT' && t.status === 'SUCCESS').reduce((s, t) => s + t.amount, 0);
+  const realMoneyOut = recon
+    ? recon.withdrawals_total
+    : freemoTxs.filter(t => t.transaction_type === 'WITHDRAW' && t.status === 'SUCCESS').reduce((s, t) => s + t.amount, 0);
 
-  const expectedCoins = realMoneyIn - realMoneyOut;
-  const discrepancy = totalSystemCoins - expectedCoins;
-  const isBalanced = Math.abs(discrepancy) < 1; // Toleration 1 coin pour arrondis
+  // Attendu = argent reel net + argent offert accepte (baseline). Discrepance = drift.
+  const offeredBaseline = recon ? recon.baseline : 0;
+  const expectedCoins = recon ? (recon.external_net + recon.baseline) : realMoneyIn - realMoneyOut;
+  const discrepancy = recon ? recon.drift : totalSystemCoins - expectedCoins;
+  const isBalanced = recon ? recon.consistent : Math.abs(discrepancy) < 1;
 
   // ── Filtrage user search ──
   const filteredUsers = useMemo(() => {
@@ -229,7 +250,7 @@ export default function AuditPage() {
                   {isBalanced ? 'Système équilibré ✓' : 'Discrépance détectée ⚠️'}
                 </h2>
                 <p className="text-xs text-text-muted">
-                  Vérification que tous les coins du système viennent bien d'un dépôt Mobile Money réel
+                  Vérification que tous les coins du système proviennent soit d'un dépôt Mobile Money réel, soit d'un crédit offert accepté (soldes de départ, bonus)
                 </p>
               </div>
             </div>
@@ -262,22 +283,28 @@ export default function AuditPage() {
               />
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
+            <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4 text-sm">
               <BalanceCard
                 icon={<ArrowDownCircle className="h-4 w-4" />}
-                label="Vrai argent entré (K-Pay deposits)"
+                label="Vrai argent entré (K-Pay + FreemoPay)"
                 value={realMoneyIn}
                 color="success"
               />
               <BalanceCard
                 icon={<ArrowUpCircle className="h-4 w-4" />}
-                label="Vrai argent sorti (K-Pay withdrawals)"
+                label="Vrai argent sorti (K-Pay + FreemoPay)"
                 value={realMoneyOut}
                 color="warning"
               />
               <BalanceCard
+                icon={<Wallet className="h-4 w-4" />}
+                label="Argent offert (accepté)"
+                value={offeredBaseline}
+                color="info"
+              />
+              <BalanceCard
                 icon={<Scale className="h-4 w-4" />}
-                label="Coins attendus (in - out)"
+                label="Coins attendus (réel net + offert)"
                 value={expectedCoins}
                 color="info"
                 highlight
@@ -287,12 +314,13 @@ export default function AuditPage() {
             {!isBalanced && (
               <div className="mt-4 rounded-xl border border-danger/30 bg-danger/10 p-4">
                 <p className="text-sm font-semibold text-danger">
-                  Discrépance : {discrepancy > 0 ? '+' : ''}{discrepancy.toLocaleString()} coins
+                  Dérive : {discrepancy > 0 ? '+' : ''}{discrepancy.toLocaleString()} coins depuis le dernier étalonnage
                 </p>
                 <p className="mt-1 text-xs text-text-muted">
                   {discrepancy > 0
-                    ? 'Le système contient plus de coins qu\'il ne devrait. Possibles causes : bug de création d\'argent, dépôts admin manuels (sans vrai argent).'
-                    : 'Le système contient moins de coins qu\'il ne devrait. Possibles causes : retrait admin manuel sans transfert réel, perte de données.'}
+                    ? 'Le système a GAGNÉ des coins non justifiés par un dépôt réel ou un crédit offert connu. Causes possibles : bug de création monétaire, ajustement admin non étalonné.'
+                    : 'Le système a PERDU des coins par rapport au modèle. Causes possibles : retrait admin non tracé, mise de jeu non comptabilisée.'}
+                  {' '}Si cette dérive est légitime (nouvelle campagne de bonus, correction), ré-étalonner via reset_reconcile_baseline.
                 </p>
               </div>
             )}

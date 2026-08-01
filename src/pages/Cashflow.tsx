@@ -898,7 +898,7 @@ function AnomalyPanel({ invariant, suspectDeposits }: {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-red-700">
-                Argent disparu ou créé sans dépôt
+                Dérive monétaire (au-delà de l'argent offert accepté)
               </p>
               <h3 className="hero-number text-2xl text-red-900">
                 {invariant.discrepancy > 0 ? '+' : ''}
@@ -906,8 +906,8 @@ function AnomalyPanel({ invariant, suspectDeposits }: {
               </h3>
               <p className="mt-1 text-sm text-red-800">
                 {invariant.discrepancy > 0
-                  ? <>Le système contient <strong>plus</strong> de coins que ce qui a été déposé. Possible bug de création monétaire, ou dépôts admin manuels.</>
-                  : <>Le système contient <strong>moins</strong> de coins que ce qui a été déposé. <strong>Argent potentiellement disparu</strong>.</>}
+                  ? <>Le système a <strong>gagné</strong> des coins non justifiés par un dépôt réel ni par l'argent offert accepté. Possible bug de création monétaire, ou ajustement admin non étalonné.</>
+                  : <>Le système a <strong>perdu</strong> des coins par rapport au modèle. <strong>Argent potentiellement disparu</strong> (retrait non tracé, mise non comptabilisée).</>}
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3 text-xs">
                 <div className="rounded-lg bg-white/60 p-2.5">
@@ -918,7 +918,7 @@ function AnomalyPanel({ invariant, suspectDeposits }: {
                 <div className="rounded-lg bg-white/60 p-2.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total attendu</p>
                   <p className="font-bold text-slate-900">{invariant.expected_total.toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500">deposits − withdrawals</p>
+                  <p className="text-[10px] text-slate-500">réel net + argent offert</p>
                 </div>
                 <div className="rounded-lg bg-white/60 p-2.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-red-700">Discrépance</p>
