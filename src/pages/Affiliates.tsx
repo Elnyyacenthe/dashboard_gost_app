@@ -36,6 +36,8 @@ interface AffiliateRow {
   available: number | null;
   pending: number | null;
   paid: number | null;
+  revenue_share_percent: number | null;
+  effective_revenue_percent: number | null;
 }
 
 const fcfa = (v: number | null | undefined) =>
@@ -130,6 +132,39 @@ export default function Affiliates() {
     await load();
   };
 
+  // Fixe un % de revenue-share propre à cet affilié (override du global).
+  // Vide = revient au % global de affiliate_config.
+  const setRevenuePercent = async (a: AffiliateRow) => {
+    const current = a.revenue_share_percent;
+    const raw = window.prompt(
+      `% de revenue-share pour ${a.username ?? ''} (0–100).\n` +
+        `Laisser VIDE pour revenir au % global (actuel effectif : ${a.effective_revenue_percent ?? '—'}%) :`,
+      current == null ? '' : String(current),
+    );
+    if (raw === null) return;
+    const trimmed = raw.trim();
+    let p_percent: number | null;
+    if (trimmed === '') {
+      p_percent = null;
+    } else {
+      const pct = Number(trimmed.replace(',', '.'));
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        alert('Pourcentage invalide (attendu : 0 à 100, ou vide pour le global).');
+        return;
+      }
+      p_percent = pct;
+    }
+    const { data, error } = await supabase.rpc('admin_set_affiliate_revenue_percent', {
+      p_affiliate_id: a.id,
+      p_percent,
+    });
+    if (error || data?.success === false) {
+      alert('Erreur : ' + (error?.message ?? data?.error ?? 'inconnu'));
+      return;
+    }
+    await load();
+  };
+
   const columns = [
     {
       key: 'username',
@@ -174,6 +209,23 @@ export default function Affiliates() {
       render: (a: AffiliateRow) => <span className="font-semibold text-primary-dark">{fcfa(a.available)}</span>,
     },
     {
+      key: 'effective_revenue_percent',
+      header: 'Revenu %',
+      render: (a: AffiliateRow) => (
+        <span className="inline-flex items-center gap-1 font-semibold">
+          {a.effective_revenue_percent ?? '—'}%
+          {a.revenue_share_percent != null && (
+            <span
+              className="rounded bg-primary/10 px-1 py-0.5 text-[10px] font-bold uppercase text-primary-dark"
+              title="Pourcentage propre à cet affilié (override du global)"
+            >
+              perso
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
       key: 'created_at',
       header: 'Inscrit le',
       render: (a: AffiliateRow) => format(new Date(a.created_at), 'dd/MM/yyyy', { locale: fr }),
@@ -182,7 +234,10 @@ export default function Affiliates() {
       key: 'actions',
       header: '',
       render: (a: AffiliateRow) => (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-1">
+          <button onClick={() => setRevenuePercent(a)} className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs">
+            % revenu
+          </button>
           <button onClick={() => adjustCommission(a)} className="btn-ghost rounded-lg px-2.5 py-1.5 text-xs">
             Ajuster
           </button>
