@@ -13,7 +13,7 @@ interface AppConfig {
   money: { starting_balance: number; withdrawal_min: number };
   legal: { support_email: string; terms: string; privacy: string; rules: string };
   contact: { whatsapp: string; telegram: string; phone: string; email: string; help_url: string };
-  games: Record<string, { enabled?: boolean; online_count?: string; hot?: boolean }>;
+  games: Record<string, { enabled?: boolean; online_count?: string; hot?: boolean; min?: number; max?: number }>;
 }
 
 const DEFAULT: AppConfig = {
@@ -26,11 +26,12 @@ const DEFAULT: AppConfig = {
 };
 
 // coverKey (nom d'asset) -> libellé. Doit matcher GameEntry.coverKey côté app.
-const GAMES: { key: string; label: string }[] = [
+// limits: true = jeux natifs dont la mise min/max est appliquée côté serveur.
+const GAMES: { key: string; label: string; limits?: boolean }[] = [
   { key: 'aviator', label: 'Aviator' }, { key: 'mines', label: 'Mines' },
-  { key: 'plinko', label: 'Plinko' }, { key: 'crash', label: 'Crash' },
-  { key: 'dice', label: 'Dice' }, { key: 'hi-lo', label: 'Hi-Lo' },
-  { key: 'keno', label: 'Keno' }, { key: 'baccarat', label: 'Baccarat' },
+  { key: 'plinko', label: 'Plinko', limits: true }, { key: 'crash', label: 'Crash', limits: true },
+  { key: 'dice', label: 'Dice', limits: true }, { key: 'hi-lo', label: 'Hi-Lo', limits: true },
+  { key: 'keno', label: 'Keno', limits: true }, { key: 'baccarat', label: 'Baccarat', limits: true },
   { key: 'roulette', label: 'Roulette' }, { key: 'big_win_777', label: 'Big Win 777' },
   { key: 'wheel', label: 'Plugbet Wheel' }, { key: 'blackjack', label: 'Blackjack' },
   { key: 'apple_fortune', label: 'Apple Fortune' }, { key: 'coinflip', label: 'Pile ou Face' },
@@ -152,7 +153,7 @@ export default function Settings() {
             onChange={(v) => setMoney('withdrawal_min', v)} />
         </div>
         <p className="rounded-xl bg-surface p-3 text-[11px] text-text-muted">
-          ℹ️ Les mises min/max par jeu et les limites sportives sont vérifiées côté serveur (contraintes SQL) et ne se règlent pas ici.
+          ℹ️ Les mises min/max des jeux natifs (Plinko, Crash, Dice, Hi-Lo, Keno, Baccarat) se règlent dans « Catalogue de jeux » ci-dessous (appliquées côté serveur). Les limites sportives restent fixées côté serveur.
         </p>
       </Section>
 
@@ -190,6 +191,8 @@ export default function Settings() {
                 <th className="py-2 text-center">Visible</th>
                 <th className="py-2">En ligne</th>
                 <th className="py-2 text-center">HOT</th>
+                <th className="py-2 text-center">Mise min</th>
+                <th className="py-2 text-center">Mise max</th>
               </tr>
             </thead>
             <tbody>
@@ -208,6 +211,20 @@ export default function Settings() {
                     </td>
                     <td className="py-2 text-center">
                       <MiniToggle checked={gc.hot === true} onChange={(v) => setGame(g.key, { hot: v })} />
+                    </td>
+                    <td className="py-2 text-center">
+                      {g.limits ? (
+                        <input type="number" min="1" value={gc.min ?? ''} placeholder="25"
+                          onChange={(e) => setGame(g.key, { min: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="w-20 rounded-lg border border-border/30 bg-surface px-2 py-1 text-xs text-text focus:border-primary focus:outline-none" />
+                      ) : <span className="text-text-muted/40">—</span>}
+                    </td>
+                    <td className="py-2 text-center">
+                      {g.limits ? (
+                        <input type="number" min="1" value={gc.max ?? ''} placeholder="5000"
+                          onChange={(e) => setGame(g.key, { max: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="w-20 rounded-lg border border-border/30 bg-surface px-2 py-1 text-xs text-text focus:border-primary focus:outline-none" />
+                      ) : <span className="text-text-muted/40">—</span>}
                     </td>
                   </tr>
                 );
