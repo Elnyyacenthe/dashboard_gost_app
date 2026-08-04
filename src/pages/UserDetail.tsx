@@ -6,7 +6,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, User, Coins, Gamepad2, Trophy, AlertTriangle,
   ShieldCheck, ShieldOff, Smartphone, MessageSquare, Loader2,
-  TrendingUp, CheckCircle2, Activity, Eye, Plus, Minus, Lock,
+  TrendingUp, CheckCircle2, Activity, Eye, Plus, Minus, Lock, Megaphone,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -36,6 +36,7 @@ interface User360 {
   total_withdrawn: number;
   active_alerts: number;
   tickets_count: number;
+  is_ad_demo: boolean | null;
 }
 
 interface Movement {
@@ -99,7 +100,7 @@ export default function UserDetail() {
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('activity');
-  const [actionModal, setActionModal] = useState<'block' | 'unblock' | 'adjust' | null>(null);
+  const [actionModal, setActionModal] = useState<'block' | 'unblock' | 'adjust' | 'ad_demo' | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -206,6 +207,19 @@ export default function UserDetail() {
             >
               <Coins className="h-4 w-4" />
               Ajuster coins
+            </button>
+          )}
+          {isSuperAdmin && (
+            <button
+              onClick={() => setActionModal('ad_demo')}
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ${
+                user.is_ad_demo
+                  ? 'bg-violet-500/20 text-violet-500 hover:bg-violet-500/30'
+                  : 'bg-violet-500/10 text-violet-500 hover:bg-violet-500/20'
+              }`}
+            >
+              <Megaphone className="h-4 w-4" />
+              {user.is_ad_demo ? 'Démo pub : ON' : 'Compte démo pub'}
             </button>
           )}
         </div>
@@ -509,7 +523,7 @@ function Empty({ msg }: { msg: string }) {
 // ─────────────────────────── Action modal ───────────────────────────
 
 function ActionModal({ type, user, onClose, onSuccess }: {
-  type: 'block' | 'unblock' | 'adjust';
+  type: 'block' | 'unblock' | 'adjust' | 'ad_demo';
   user: User360;
   onClose: () => void;
   onSuccess: () => void;
@@ -519,10 +533,11 @@ function ActionModal({ type, user, onClose, onSuccess }: {
   const [direction, setDirection] = useState<'add' | 'sub'>('add');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const enableDemo = !user.is_ad_demo; // ad_demo : bascule selon l'état courant
 
   const submit = async () => {
     setError('');
-    if (reason.trim().length < 3) {
+    if ((type === 'block' || type === 'unblock' || type === 'adjust') && reason.trim().length < 3) {
       setError('Raison obligatoire (3 caractères minimum)');
       return;
     }
@@ -546,6 +561,15 @@ function ActionModal({ type, user, onClose, onSuccess }: {
         });
         if (e) throw e;
         if (data?.success === false) throw new Error(data.error);
+      } else if (type === 'ad_demo') {
+        const bal = enableDemo ? Math.max(0, parseInt(delta || '0', 10) || 0) : 0;
+        const { data, error: e } = await supabase.rpc('admin_set_ad_demo', {
+          p_user_id: user.id,
+          p_enabled: enableDemo,
+          p_balance: bal,
+        });
+        if (e) throw e;
+        if (data?.success === false) throw new Error(data.error);
       }
       onSuccess();
     } catch (e) {
@@ -561,7 +585,10 @@ function ActionModal({ type, user, onClose, onSuccess }: {
         onClick={e => e.stopPropagation()}>
         <div className="border-b border-border/20 p-5">
           <h3 className="font-bold text-text">
-            {type === 'block' ? 'Bloquer le joueur' : type === 'unblock' ? 'Débloquer le joueur' : 'Ajuster les coins'}
+            {type === 'block' ? 'Bloquer le joueur'
+              : type === 'unblock' ? 'Débloquer le joueur'
+              : type === 'adjust' ? 'Ajuster les coins'
+              : enableDemo ? 'Activer le compte démo pub' : 'Désactiver le compte démo pub'}
           </h3>
           <p className="mt-1 text-xs text-text-muted">{user.username}</p>
         </div>
@@ -595,16 +622,40 @@ function ActionModal({ type, user, onClose, onSuccess }: {
             </>
           )}
 
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-text-muted">
-              Raison <span className="text-danger">*</span>
-            </label>
-            <textarea value={reason} onChange={e => setReason(e.target.value)}
-              placeholder="Ex: Refund partie crashée game_id #abc"
-              rows={3}
-              className="w-full resize-none rounded-xl border border-border/30 bg-surface px-4 py-2.5 text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary" />
-            <p className="mt-1 text-[11px] text-text-muted">Tracée dans admin_actions_log de manière permanente.</p>
-          </div>
+          {type === 'ad_demo' && (
+            enableDemo ? (
+              <>
+                <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-3 text-xs text-text-secondary">
+                  Ce compte jouera en <strong>sandbox</strong> : coins fictifs, hors comptabilité,
+                  <strong> non retirables</strong>. Trio biaisé favorable (Aviator, Mines, Plinko) ;
+                  les autres jeux sont désactivés pour ce compte.
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-text-muted">Solde démo de départ (coins)</label>
+                  <input type="number" min="0" value={delta} onChange={e => setDelta(e.target.value)}
+                    placeholder="5000000"
+                    className="w-full rounded-xl border border-border/30 bg-surface px-4 py-2.5 text-lg font-bold text-text focus:outline-none focus:border-primary" />
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border border-border/30 bg-surface p-3 text-sm text-text-secondary">
+                Désactive le mode démo et remet le solde (fictif) à 0. Le compte redevient normal.
+              </div>
+            )
+          )}
+
+          {type !== 'ad_demo' && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-text-muted">
+                Raison <span className="text-danger">*</span>
+              </label>
+              <textarea value={reason} onChange={e => setReason(e.target.value)}
+                placeholder="Ex: Refund partie crashée game_id #abc"
+                rows={3}
+                className="w-full resize-none rounded-xl border border-border/30 bg-surface px-4 py-2.5 text-sm text-text placeholder:text-text-muted/50 focus:outline-none focus:border-primary" />
+              <p className="mt-1 text-[11px] text-text-muted">Tracée dans admin_actions_log de manière permanente.</p>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-center gap-2 rounded-xl bg-danger/10 border border-danger/20 p-3 text-sm text-danger">
