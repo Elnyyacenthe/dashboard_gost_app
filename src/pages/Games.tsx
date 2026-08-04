@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Gamepad2, Trophy, TrendingUp, Users, RefreshCw, Coins,
-  ArrowDownCircle, ArrowUpCircle,
+  ArrowDownCircle, ArrowUpCircle, SlidersHorizontal, Save, Loader2,
 } from 'lucide-react';
 import StatsCard from '../components/StatsCard';
 import { supabase } from '../lib/supabaseClient';
@@ -158,6 +158,9 @@ export default function GamesPage() {
         </button>
       </div>
 
+      {/* Contrôle RTP / avantage maison */}
+      <RtpControlPanel />
+
       {loading ? (
         <div className="flex h-40 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -276,6 +279,121 @@ export default function GamesPage() {
             </p>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+//  Contrôle RTP / avantage maison (house_edge_config)
+// ============================================================
+interface EdgeRow {
+  game_type: string;
+  edge_pct: number;   // 0..0.90 (part maison)
+  rtp: number;        // 1 - edge
+  enabled: boolean;
+  description: string | null;
+}
+
+const EDGE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(GAMES_META).map(([k, v]) => [k, `${v.emoji} ${v.label}`])),
+  aviator_distribution: '✈️ Aviator — générosité (distribution de crash)',
+};
+
+function RtpControlPanel() {
+  const [rows, setRows] = useState<EdgeRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [denied, setDenied] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>({});   // game_type -> RTP % en saisie
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: err } = await supabase.rpc('admin_list_house_edge');
+    if (err) { setError(err.message); setLoading(false); return; }
+    if (data?.success === false) {
+      if (data.error === 'NOT_ADMIN') setDenied(true); else setError(data.error);
+      setLoading(false);
+      return;
+    }
+    const games: EdgeRow[] = data?.games ?? [];
+    setRows(games);
+    setDraft(Object.fromEntries(games.map((g) => [g.game_type, (g.rtp * 100).toFixed(1)])));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const save = async (gt: string) => {
+    const rtpPct = Number((draft[gt] ?? '').replace(',', '.'));
+    if (!Number.isFinite(rtpPct) || rtpPct < 10 || rtpPct > 100) {
+      setError(`RTP invalide pour ${gt} (attendu 10 à 100 %).`);
+      return;
+    }
+    setSavingKey(gt);
+    setError(null);
+    const edge = Math.round((1 - rtpPct / 100) * 10000) / 10000;
+    const { data, error: err } = await supabase.rpc('admin_set_house_edge', {
+      p_game_type: gt, p_edge_pct: edge,
+    });
+    if (err || data?.success === false) {
+      setError(err?.message ?? data?.error ?? 'Erreur');
+    } else {
+      await load();
+    }
+    setSavingKey(null);
+  };
+
+  if (denied) return null;   // écran réservé aux admins ayant la permission
+
+  return (
+    <div className="rounded-2xl border border-border/30 bg-surface-light p-5">
+      <div className="mb-1 flex items-center gap-2">
+        <SlidersHorizontal className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-bold text-text">Contrôle RTP / avantage maison</h2>
+      </div>
+      <p className="mb-4 text-xs text-text-muted">
+        RTP = part reversée aux joueurs (100 % = aucun avantage maison). S'applique aux <b>parties futures</b>.
+        Couvre les jeux passant par <code>apply_game_payout</code> + la générosité d'Aviator.
+      </p>
+
+      {error && <p className="mb-3 rounded-xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger">{error}</p>}
+
+      {loading ? (
+        <div className="flex h-24 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((r) => {
+            const label = EDGE_LABELS[r.game_type] ?? r.game_type;
+            const dirty = (draft[r.game_type] ?? '') !== (r.rtp * 100).toFixed(1);
+            return (
+              <div key={r.game_type} className="rounded-xl border border-border/20 bg-surface p-3">
+                <p className="mb-2 truncate text-sm font-semibold text-text" title={r.game_type}>{label}</p>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input type="number" min="10" max="100" step="0.5"
+                      value={draft[r.game_type] ?? ''}
+                      onChange={(e) => setDraft((d) => ({ ...d, [r.game_type]: e.target.value }))}
+                      className="w-full rounded-lg border border-border/30 bg-surface-light px-3 py-2 pr-7 text-sm font-bold text-text focus:border-primary focus:outline-none" />
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted">%</span>
+                  </div>
+                  <button onClick={() => save(r.game_type)} disabled={!dirty || savingKey === r.game_type}
+                    className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">
+                    {savingKey === r.game_type ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    RTP
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-text-muted">
+                  Avantage maison : <b>{(r.edge_pct * 100).toFixed(1)} %</b>
+                </p>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
