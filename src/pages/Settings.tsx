@@ -10,7 +10,10 @@ import { useAuth } from '../lib/hooks/useAuth';
 interface AppConfig {
   maintenance: { enabled: boolean; message: string };
   registration_open: boolean;
-  money: { starting_balance: number; withdrawal_min: number };
+  money: {
+    starting_balance: number; withdrawal_min: number;
+    sports: { stake_min: number; stake_max: number; max_selections: number };
+  };
   legal: { support_email: string; terms: string; privacy: string; rules: string };
   contact: { whatsapp: string; telegram: string; phone: string; email: string; help_url: string };
   games: Record<string, { enabled?: boolean; online_count?: string; hot?: boolean; min?: number; max?: number }>;
@@ -19,7 +22,7 @@ interface AppConfig {
 const DEFAULT: AppConfig = {
   maintenance: { enabled: false, message: 'Plugbet est en maintenance. Nous revenons très vite !' },
   registration_open: true,
-  money: { starting_balance: 1000, withdrawal_min: 100 },
+  money: { starting_balance: 1000, withdrawal_min: 100, sports: { stake_min: 100, stake_max: 1000000, max_selections: 20 } },
   legal: { support_email: 'support@plugbet.app', terms: '', privacy: '', rules: '' },
   contact: { whatsapp: '', telegram: '', phone: '', email: '', help_url: '' },
   games: {},
@@ -28,11 +31,11 @@ const DEFAULT: AppConfig = {
 // coverKey (nom d'asset) -> libellé. Doit matcher GameEntry.coverKey côté app.
 // limits: true = jeux natifs dont la mise min/max est appliquée côté serveur.
 const GAMES: { key: string; label: string; limits?: boolean }[] = [
-  { key: 'aviator', label: 'Aviator' }, { key: 'mines', label: 'Mines' },
+  { key: 'aviator', label: 'Aviator', limits: true }, { key: 'mines', label: 'Mines' },
   { key: 'plinko', label: 'Plinko', limits: true }, { key: 'crash', label: 'Crash', limits: true },
   { key: 'dice', label: 'Dice', limits: true }, { key: 'hi-lo', label: 'Hi-Lo', limits: true },
   { key: 'keno', label: 'Keno', limits: true }, { key: 'baccarat', label: 'Baccarat', limits: true },
-  { key: 'roulette', label: 'Roulette' }, { key: 'big_win_777', label: 'Big Win 777' },
+  { key: 'roulette', label: 'Roulette' }, { key: 'big_win_777', label: 'Big Win 777', limits: true },
   { key: 'wheel', label: 'Plugbet Wheel' }, { key: 'blackjack', label: 'Blackjack' },
   { key: 'apple_fortune', label: 'Apple Fortune' }, { key: 'coinflip', label: 'Pile ou Face' },
   { key: 'cora_dice', label: 'Cora Dice' }, { key: 'dames', label: 'Dames' },
@@ -60,7 +63,10 @@ export default function Settings() {
         setCfg({
           ...DEFAULT, ...v,
           maintenance: { ...DEFAULT.maintenance, ...(v.maintenance ?? {}) },
-          money: { ...DEFAULT.money, ...(v.money ?? {}) },
+          money: {
+            ...DEFAULT.money, ...(v.money ?? {}),
+            sports: { ...DEFAULT.money.sports, ...(v.money?.sports ?? {}) },
+          },
           legal: { ...DEFAULT.legal, ...(v.legal ?? {}) },
           contact: { ...DEFAULT.contact, ...(v.contact ?? {}) },
           games: v.games ?? {},
@@ -93,8 +99,10 @@ export default function Settings() {
   };
 
   // setters de section
-  const setMoney = (k: keyof AppConfig['money'], v: number) =>
+  const setMoney = (k: 'starting_balance' | 'withdrawal_min', v: number) =>
     setCfg((c) => ({ ...c, money: { ...c.money, [k]: v } }));
+  const setSports = (k: keyof AppConfig['money']['sports'], v: number) =>
+    setCfg((c) => ({ ...c, money: { ...c.money, sports: { ...c.money.sports, [k]: v } } }));
   const setLegal = (k: keyof AppConfig['legal'], v: string) =>
     setCfg((c) => ({ ...c, legal: { ...c.legal, [k]: v } }));
   const setContact = (k: keyof AppConfig['contact'], v: string) =>
@@ -152,8 +160,17 @@ export default function Settings() {
           <NumberInput label="Retrait minimum (FCFA)" value={cfg.money.withdrawal_min}
             onChange={(v) => setMoney('withdrawal_min', v)} />
         </div>
+        <p className="mt-2 mb-1 text-xs font-semibold text-text">Paris sportifs (appliqué serveur)</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <NumberInput label="Mise min (FCFA)" value={cfg.money.sports.stake_min}
+            onChange={(v) => setSports('stake_min', v)} />
+          <NumberInput label="Mise max (FCFA)" value={cfg.money.sports.stake_max}
+            onChange={(v) => setSports('stake_max', v)} />
+          <NumberInput label="Sélections max (combiné)" value={cfg.money.sports.max_selections}
+            onChange={(v) => setSports('max_selections', v)} />
+        </div>
         <p className="rounded-xl bg-surface p-3 text-[11px] text-text-muted">
-          ℹ️ Les mises min/max des jeux natifs (Plinko, Crash, Dice, Hi-Lo, Keno, Baccarat) se règlent dans « Catalogue de jeux » ci-dessous (appliquées côté serveur). Les limites sportives restent fixées côté serveur.
+          ℹ️ Les mises min/max des jeux natifs + Aviator + Big Win 777 se règlent dans « Catalogue de jeux » ci-dessous (appliquées côté serveur).
         </p>
       </Section>
 
