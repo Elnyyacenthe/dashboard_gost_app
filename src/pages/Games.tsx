@@ -298,6 +298,13 @@ interface EdgeRow {
 const EDGE_LABELS: Record<string, string> = {
   ...Object.fromEntries(Object.entries(GAMES_META).map(([k, v]) => [k, `${v.emoji} ${v.label}`])),
   aviator_distribution: '✈️ Aviator — générosité (distribution de crash)',
+  // Jeux natifs (RTP branché sur house_edge_config)
+  crash: '📈 Crash (Limbo)',
+  dice: '🎲 Dice',
+  plinko: '🔻 Plinko',
+  keno: '🔢 Keno',
+  hilo: '🃏 Hi-Lo',
+  baccarat: '🀄 Baccarat',
 };
 
 function RtpControlPanel() {
