@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Users, Gamepad2, BarChart3, Settings, LogOut,
   MessageSquare, Vault, Scale, AlertTriangle, History, Megaphone,
   FileSpreadsheet, TrendingUp, X, Cherry, Ticket, Activity, Disc3, Handshake, Radio, Coins, PlugZap,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
@@ -84,6 +85,7 @@ export default function Sidebar({ onSignOut, open = false, onClose }: SidebarPro
   const opsGroup: NavItem[] = [
     { to: '/dashboard/alerts',         icon: AlertTriangle, label: 'Alertes',        badge: unresolvedAlerts, perm: 'nav.alerts' },
     { to: '/dashboard/announcements',  icon: Megaphone,     label: 'Annonces',       perm: 'nav.announcements' },
+    { to: '/dashboard/content',        icon: ImageIcon,     label: 'Contenu (CMS)',  perm: 'nav.announcements' },
     { to: '/dashboard/replay',         icon: History,       label: 'Replay',         perm: 'nav.replay' },
     { to: '/dashboard/support',        icon: MessageSquare, label: 'Service Client', badge: unreadSupport, perm: 'nav.support' },
     { to: '/dashboard/affiliates',     icon: Handshake,     label: 'Affiliés',       perm: 'nav.affiliates' },

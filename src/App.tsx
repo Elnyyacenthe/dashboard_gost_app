@@ -25,6 +25,7 @@ import Affiliates from './pages/Affiliates';
 import OddsMonitor from './pages/OddsMonitor';
 import OddsPapi from './pages/OddsPapi';
 import FxRates from './pages/FxRates';
+import Content from './pages/Content';
 import { useAuth } from './lib/hooks/useAuth';
 import { can, type Permission, type Role } from './lib/permissions';
 
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="cashflow" element={<Guard perm="nav.cashflow"><Cashflow /></Guard>} />
           <Route path="alerts" element={<Guard perm="nav.alerts"><AlertsPage /></Guard>} />
           <Route path="announcements" element={<Guard perm="nav.announcements"><Announcements /></Guard>} />
+          <Route path="content" element={<Guard perm="nav.announcements"><Content /></Guard>} />
           <Route path="affiliates" element={<Guard perm="nav.affiliates"><Affiliates /></Guard>} />
           <Route path="odds" element={<Guard perm="nav.odds"><OddsMonitor /></Guard>} />
           <Route path="oddspapi" element={<Guard perm="nav.oddspapi"><OddsPapi /></Guard>} />
