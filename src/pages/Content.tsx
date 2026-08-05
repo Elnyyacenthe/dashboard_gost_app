@@ -54,10 +54,25 @@ interface CarouselSlide {
   title: string | null;
   subtitle: string | null;
   show_countdown: boolean;
+  countdown_target: string | null;
   promo_id: string | null;
   sort_order: number;
   is_active: boolean;
   updated_at: string;
+}
+
+// ISO (UTC) stocké <-> valeur d'un <input type="datetime-local"> (heure locale).
+function isoToLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function localInputToIso(v: string): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 // Affiches "slot unique" (app_banners). Le carousel d'accueil, lui, est une
@@ -338,6 +353,17 @@ function HomeCarouselManager() {
                       onChange={(e) => patch(s.id, { show_countdown: e.target.checked })} />
                     Compte à rebours superposé
                   </label>
+                  {s.show_countdown && (
+                    <label className="flex items-center gap-1.5 text-xs text-text-muted">
+                      Échéance :
+                      <input type="datetime-local" className={inputCls + ' w-52'}
+                        defaultValue={isoToLocalInput(s.countdown_target)}
+                        onBlur={(e) => {
+                          const iso = localInputToIso(e.target.value);
+                          if (iso !== s.countdown_target) patch(s.id, { countdown_target: iso });
+                        }} />
+                    </label>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1 sm:flex-col">
