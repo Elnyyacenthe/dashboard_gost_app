@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Save, Globe, Coins, FileText, Headset, Gamepad2, Loader2,
-  CheckCircle2, AlertTriangle, Lock,
+  CheckCircle2, AlertTriangle, Lock, Smartphone,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
@@ -10,6 +10,10 @@ import { useAuth } from '../lib/hooks/useAuth';
 interface AppConfig {
   maintenance: { enabled: boolean; message: string };
   registration_open: boolean;
+  // Mise à jour obligatoire. `min_build` est le BUILD NUMBER (le +N de
+  // pubspec, = versionCode Android), pas le nom de version : lui seul est
+  // monotone. 0 = aucun blocage.
+  update: { min_build: number; message: string; android_url: string };
   money: {
     starting_balance: number; withdrawal_min: number;
     sports: { stake_min: number; stake_max: number; max_selections: number };
@@ -22,6 +26,11 @@ interface AppConfig {
 const DEFAULT: AppConfig = {
   maintenance: { enabled: false, message: 'Plugbet est en maintenance. Nous revenons très vite !' },
   registration_open: true,
+  update: {
+    min_build: 0,
+    message: "Cette version n'est plus prise en charge. Installe la dernière pour continuer à jouer.",
+    android_url: 'https://plugbetx.com/plugbet.apk',
+  },
   money: { starting_balance: 1000, withdrawal_min: 100, sports: { stake_min: 100, stake_max: 1000000, max_selections: 20 } },
   legal: { support_email: 'support@plugbet.app', terms: '', privacy: '', rules: '' },
   contact: { whatsapp: '', telegram: '', phone: '', email: '', help_url: '' },
@@ -63,6 +72,9 @@ export default function Settings() {
         setCfg({
           ...DEFAULT, ...v,
           maintenance: { ...DEFAULT.maintenance, ...(v.maintenance ?? {}) },
+          // `update` est absent des configs enregistrees avant le 2026-08-04 :
+          // sans ce repli, cfg.update serait undefined et la section planterait.
+          update: { ...DEFAULT.update, ...(v.update ?? {}) },
           money: {
             ...DEFAULT.money, ...(v.money ?? {}),
             sports: { ...DEFAULT.money.sports, ...(v.money?.sports ?? {}) },
@@ -150,6 +162,32 @@ export default function Settings() {
         <ToggleRow label="Inscriptions ouvertes" description="Autoriser les nouveaux comptes"
           checked={cfg.registration_open}
           onChange={(v) => setCfg((c) => ({ ...c, registration_open: v }))} />
+      </Section>
+
+      {/* Mise à jour obligatoire */}
+      <Section icon={<Smartphone className="h-5 w-5 text-primary" />} title="Mise à jour obligatoire (Android)">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <NumberInput label="Build number minimum (0 = désactivé)" value={cfg.update.min_build}
+            onChange={(v) => setCfg((c) => ({ ...c, update: { ...c.update, min_build: v } }))} />
+          <TextInput label="Lien de téléchargement de l'APK" value={cfg.update.android_url}
+            onChange={(v) => setCfg((c) => ({ ...c, update: { ...c.update, android_url: v } }))}
+            placeholder="https://plugbetx.com/plugbet.apk" />
+        </div>
+        <TextArea label="Message affiché" rows={2} value={cfg.update.message}
+          onChange={(v) => setCfg((c) => ({ ...c, update: { ...c.update, message: v } }))} />
+        <div className="rounded-xl bg-surface p-3 text-[11px] text-text-muted space-y-1">
+          <p>
+            ℹ️ C'est le <strong>build number</strong> (le <code>+N</code> de pubspec, égal au versionCode Android),
+            pas le nom de version. Toute app dont le build est <strong>strictement inférieur</strong> est bloquée
+            par un écran plein écran jusqu'à réinstallation.
+          </p>
+          <p>
+            ⚠️ Ne mettre cette valeur qu'à un build <strong>déjà publié</strong> sur{' '}
+            <code>plugbetx.com/plugbet.apk</code>. La renseigner trop haut bloque tout le monde,
+            y compris les joueurs qui viennent de mettre à jour.
+          </p>
+          <p>Sans effet sur le web, qui sert toujours la dernière version.</p>
+        </div>
       </Section>
 
       {/* Limites d'argent */}
