@@ -48,20 +48,21 @@ interface BannerRow {
   updated_at: string;
 }
 
-// Emplacements d'affiches surchargeables (mêmes clés que app_banners /
-// GameContentProvider.bannerFor côté Flutter). L'app garde l'affiche
-// embarquée tant qu'aucun override actif n'existe.
+interface CarouselSlide {
+  id: string;
+  image_url: string;
+  title: string | null;
+  subtitle: string | null;
+  show_countdown: boolean;
+  promo_id: string | null;
+  sort_order: number;
+  is_active: boolean;
+  updated_at: string;
+}
+
+// Affiches "slot unique" (app_banners). Le carousel d'accueil, lui, est une
+// liste de longueur libre gérée à part (home_carousel_slides).
 const BANNER_SLOTS: { slot: string; label: string; hint: string }[] = [
-  {
-    slot: 'home_worldcup',
-    label: 'Accueil — Affiche 1 (compte à rebours)',
-    hint: "1re affiche du carousel d'accueil (onglet Paris → Top). Le compte à rebours reste superposé par-dessus l'image.",
-  },
-  {
-    slot: 'home_primary',
-    label: 'Accueil — Affiche 2 (principale)',
-    hint: "2e affiche du carousel d'accueil.",
-  },
   {
     slot: 'esports',
     label: 'Affiche E-Sports / Matchs virtuels',
@@ -184,7 +185,11 @@ function BannersTab() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <HomeCarouselManager />
+
+      <div className="space-y-4">
+      <h3 className="text-sm font-bold text-text">Affiches à emplacement unique</h3>
       <p className="text-sm text-text-muted">
         Remplace les grandes affiches embarquées de l'app sans republier de version.
         Tant qu'aucune image active n'est définie, l'app garde son affiche d'origine.
@@ -228,6 +233,123 @@ function BannersTab() {
               </div>
             );
           })}
+        </div>
+      )}
+      </div>
+    </div>
+  );
+}
+
+// ── Carousel d'accueil (liste de longueur libre) ─────────────
+function HomeCarouselManager() {
+  const [rows, setRows] = useState<CarouselSlide[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error: err } = await supabase.from('home_carousel_slides')
+      .select('*').order('sort_order');
+    if (err) setError(err.message);
+    else setRows((data ?? []) as CarouselSlide[]);
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const addSlide = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setUploading(true); setError(null);
+    try {
+      const url = await uploadToCms('carousel', f);
+      const nextOrder = rows.length ? Math.max(...rows.map((r) => r.sort_order)) + 10 : 10;
+      const { error: err } = await supabase.from('home_carousel_slides')
+        .insert({ image_url: url, sort_order: nextOrder, is_active: true });
+      if (err) throw new Error(err.message);
+      load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Échec'); }
+    finally { setUploading(false); }
+  };
+
+  const patch = async (id: string, changes: Partial<CarouselSlide>) => {
+    const { error: err } = await supabase.from('home_carousel_slides')
+      .update({ ...changes, updated_at: new Date().toISOString() }).eq('id', id);
+    if (err) setError(err.message); else load();
+  };
+  const remove = async (id: string) => {
+    if (!window.confirm('Supprimer cette slide du carousel ?')) return;
+    const { error: err } = await supabase.from('home_carousel_slides').delete().eq('id', id);
+    if (err) setError(err.message); else load();
+  };
+  const move = async (idx: number, dir: -1 | 1) => {
+    const a = rows[idx], b = rows[idx + dir];
+    if (!a || !b) return;
+    // échange les sort_order des deux slides voisines
+    await supabase.from('home_carousel_slides').update({ sort_order: b.sort_order }).eq('id', a.id);
+    await supabase.from('home_carousel_slides').update({ sort_order: a.sort_order }).eq('id', b.id);
+    load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-text">Carousel d'accueil</h3>
+          <p className="text-[11px] text-text-muted">
+            Autant d'affiches que tu veux, dans l'ordre choisi. Vide = les 2 affiches embarquées d'origine.
+          </p>
+        </div>
+        <label className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white">
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Ajouter une affiche
+          <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={addSlide} />
+        </label>
+      </div>
+
+      {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+
+      {loading ? (
+        <div className="flex h-24 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : rows.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border/40 px-3 py-6 text-center text-sm text-text-muted">
+          Aucune affiche — le carousel affiche les 2 images embarquées de l'app.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((s, i) => (
+            <div key={s.id} className={`flex flex-col gap-3 rounded-2xl border p-3 sm:flex-row ${s.is_active ? 'border-border/30 bg-surface-light' : 'border-border/10 bg-surface-light/50'}`}>
+              <div className="h-24 w-full shrink-0 overflow-hidden rounded-lg bg-surface sm:w-44">
+                <img src={s.image_url} alt="" className={`h-full w-full object-cover ${s.is_active ? '' : 'opacity-40'}`} />
+              </div>
+              <div className="flex flex-1 flex-col gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input className={inputCls} placeholder="Titre (optionnel)" defaultValue={s.title ?? ''}
+                    onBlur={(e) => e.target.value !== (s.title ?? '') && patch(s.id, { title: e.target.value || null })} />
+                  <input className={inputCls} placeholder="Sous-titre (optionnel)" defaultValue={s.subtitle ?? ''}
+                    onBlur={(e) => e.target.value !== (s.subtitle ?? '') && patch(s.id, { subtitle: e.target.value || null })} />
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input className={inputCls + ' w-56'} placeholder="ID promo au clic (optionnel)" defaultValue={s.promo_id ?? ''}
+                    onBlur={(e) => e.target.value !== (s.promo_id ?? '') && patch(s.id, { promo_id: e.target.value || null })} />
+                  <label className="flex items-center gap-1.5 text-xs text-text-muted">
+                    <input type="checkbox" checked={s.show_countdown}
+                      onChange={(e) => patch(s.id, { show_countdown: e.target.checked })} />
+                    Compte à rebours superposé
+                  </label>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 sm:flex-col">
+                <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded-lg p-1.5 text-text-muted disabled:opacity-30" title="Monter">▲</button>
+                <button onClick={() => move(i, 1)} disabled={i === rows.length - 1} className="rounded-lg p-1.5 text-text-muted disabled:opacity-30" title="Descendre">▼</button>
+                <button onClick={() => patch(s.id, { is_active: !s.is_active })} className={`rounded-lg p-1.5 ${s.is_active ? 'text-success' : 'text-text-muted'}`} title={s.is_active ? 'Masquer' : 'Afficher'}>
+                  {s.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+                <button onClick={() => remove(s.id)} className="rounded-lg p-1.5 text-danger" title="Supprimer"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
