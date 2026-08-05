@@ -13,6 +13,7 @@ import {
   Upload, Save, Star, LayoutTemplate,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { compressImage } from '../lib/imageCompress';
 import { useAuth } from '../lib/hooks/useAuth';
 
 interface PromoRow {
@@ -100,12 +101,29 @@ const emptyPromo = (): PromoRow => ({
   sort_order: 100, is_visible: true,
 });
 
-async function uploadToCms(folder: string, file: File): Promise<string> {
-  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+interface Uploaded {
+  url: string;
+  /** Dimensions après compression (0 si l'image n'a pas pu être mesurée). */
+  width: number;
+  height: number;
+}
+
+// Point de passage UNIQUE de tous les uploads du CMS (affiches, carousel,
+// promotions, couvertures) : la compression est branchée ici pour qu'aucun
+// écran ne puisse y échapper. Voir lib/imageCompress.ts.
+async function uploadToCms(folder: string, file: File): Promise<Uploaded> {
+  const { file: out, width, height } = await compressImage(file);
+  const safe = out.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const path = `${folder}/${Date.now()}-${safe}`;
-  const up = await supabase.storage.from('cms').upload(path, file, { upsert: false });
+  const up = await supabase.storage.from('cms').upload(path, out, {
+    upsert: false,
+    contentType: out.type,
+    // Les fichiers sont nommés avec un timestamp, donc immuables : un an de
+    // cache navigateur/CDN au lieu de l'heure par défaut.
+    cacheControl: '31536000',
+  });
   if (up.error) throw new Error(up.error.message);
-  return supabase.storage.from('cms').getPublicUrl(path).data.publicUrl;
+  return { url: supabase.storage.from('cms').getPublicUrl(path).data.publicUrl, width, height };
 }
 
 export default function Content() {
@@ -179,9 +197,13 @@ function BannersTab() {
     if (!f) return;
     setUploadingSlot(slot); setError(null);
     try {
-      const url = await uploadToCms('banners', f);
+      const img = await uploadToCms('banners', f);
       const { error: err } = await supabase.from('app_banners')
-        .upsert({ slot, image_url: url, is_active: true, updated_at: new Date().toISOString() });
+        .upsert({
+          slot, image_url: img.url, is_active: true,
+          image_width: img.width || null, image_height: img.height || null,
+          updated_at: new Date().toISOString(),
+        });
       if (err) throw new Error(err.message);
       load();
     } catch (err) { setError(err instanceof Error ? err.message : 'Échec'); }
@@ -278,10 +300,14 @@ function HomeCarouselManager() {
     if (!f) return;
     setUploading(true); setError(null);
     try {
-      const url = await uploadToCms('carousel', f);
+      const img = await uploadToCms('carousel', f);
       const nextOrder = rows.length ? Math.max(...rows.map((r) => r.sort_order)) + 10 : 10;
+      // Les dimensions donnent au carousel de l'app sa hauteur exacte.
       const { error: err } = await supabase.from('home_carousel_slides')
-        .insert({ image_url: url, sort_order: nextOrder, is_active: true });
+        .insert({
+          image_url: img.url, sort_order: nextOrder, is_active: true,
+          image_width: img.width || null, image_height: img.height || null,
+        });
       if (err) throw new Error(err.message);
       load();
     } catch (err) { setError(err instanceof Error ? err.message : 'Échec'); }
@@ -470,7 +496,7 @@ function PromoEditor({ promo, onClose, onSaved }: { promo: PromoRow; onClose: ()
     const f = e.target.files?.[0];
     if (!f) return;
     setUploading(true); setError(null);
-    try { set(field, await uploadToCms('promos', f)); }
+    try { set(field, (await uploadToCms('promos', f)).url); }
     catch (err) { setError(err instanceof Error ? err.message : 'Upload échoué'); }
     finally { setUploading(false); }
   };
@@ -593,7 +619,7 @@ function CoversTab() {
     if (!gameId.trim()) { setError('Choisis d\'abord l\'identifiant du jeu.'); return; }
     setUploading(true); setError(null);
     try {
-      const url = await uploadToCms('covers', f);
+      const { url } = await uploadToCms('covers', f);
       const { error: err } = await supabase.from('game_cover_overrides')
         .upsert({ game_id: gameId.trim(), image_url: url, is_active: true });
       if (err) throw new Error(err.message);
