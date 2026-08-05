@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Loader2, Lock, Megaphone, Image as ImageIcon, Plus, Trash2, Eye, EyeOff,
-  Upload, Save, Star,
+  Upload, Save, Star, LayoutTemplate,
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../lib/hooks/useAuth';
@@ -41,6 +41,34 @@ interface CoverRow {
   updated_at: string;
 }
 
+interface BannerRow {
+  slot: string;
+  image_url: string;
+  is_active: boolean;
+  updated_at: string;
+}
+
+// Emplacements d'affiches surchargeables (mêmes clés que app_banners /
+// GameContentProvider.bannerFor côté Flutter). L'app garde l'affiche
+// embarquée tant qu'aucun override actif n'existe.
+const BANNER_SLOTS: { slot: string; label: string; hint: string }[] = [
+  {
+    slot: 'home_worldcup',
+    label: 'Accueil — Affiche 1 (compte à rebours)',
+    hint: "1re affiche du carousel d'accueil (onglet Paris → Top). Le compte à rebours reste superposé par-dessus l'image.",
+  },
+  {
+    slot: 'home_primary',
+    label: 'Accueil — Affiche 2 (principale)',
+    hint: "2e affiche du carousel d'accueil.",
+  },
+  {
+    slot: 'esports',
+    label: 'Affiche E-Sports / Matchs virtuels',
+    hint: "Grande affiche cliquable en haut de l'onglet Paris (Sports).",
+  },
+];
+
 const ALL_PLACEMENTS: { key: string; label: string }[] = [
   { key: 'promotions', label: 'Écran Promotions' },
   { key: 'games_tab', label: 'Onglet Jeux' },
@@ -66,7 +94,7 @@ async function uploadToCms(folder: string, file: File): Promise<string> {
 
 export default function Content() {
   const { isAdmin, loading: authLoading } = useAuth();
-  const [tab, setTab] = useState<'promos' | 'covers'>('promos');
+  const [tab, setTab] = useState<'promos' | 'covers' | 'banners'>('promos');
 
   if (authLoading) {
     return <div className="flex h-40 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -93,6 +121,7 @@ export default function Content() {
       <div className="flex w-fit gap-1 rounded-xl border border-border/30 bg-surface p-1">
         {([
           { key: 'promos', label: 'Promotions', icon: Megaphone },
+          { key: 'banners', label: 'Bannières principales', icon: LayoutTemplate },
           { key: 'covers', label: 'Couvertures de jeux', icon: ImageIcon },
         ] as const).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
@@ -104,7 +133,103 @@ export default function Content() {
         ))}
       </div>
 
-      {tab === 'promos' ? <PromosTab /> : <CoversTab />}
+      {tab === 'promos' ? <PromosTab /> : tab === 'banners' ? <BannersTab /> : <CoversTab />}
+    </div>
+  );
+}
+
+// ── Onglet Bannières principales ─────────────────────────────
+function BannersTab() {
+  const [rows, setRows] = useState<Record<string, BannerRow>>({});
+  const [loading, setLoading] = useState(true);
+  const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error: err } = await supabase.from('app_banners').select('*');
+    if (err) setError(err.message);
+    else {
+      const map: Record<string, BannerRow> = {};
+      for (const r of (data ?? []) as BannerRow[]) map[r.slot] = r;
+      setRows(map);
+    }
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const onUpload = async (slot: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setUploadingSlot(slot); setError(null);
+    try {
+      const url = await uploadToCms('banners', f);
+      const { error: err } = await supabase.from('app_banners')
+        .upsert({ slot, image_url: url, is_active: true, updated_at: new Date().toISOString() });
+      if (err) throw new Error(err.message);
+      load();
+    } catch (err) { setError(err instanceof Error ? err.message : 'Échec'); }
+    finally { setUploadingSlot(null); }
+  };
+
+  const toggle = async (slot: string, row: BannerRow) => {
+    const { error: err } = await supabase.from('app_banners')
+      .update({ is_active: !row.is_active }).eq('slot', slot);
+    if (err) setError(err.message); else load();
+  };
+  const remove = async (slot: string) => {
+    if (!window.confirm("Retirer cette affiche (retour à l'image embarquée de l'app) ?")) return;
+    const { error: err } = await supabase.from('app_banners').delete().eq('slot', slot);
+    if (err) setError(err.message); else load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-text-muted">
+        Remplace les grandes affiches embarquées de l'app sans republier de version.
+        Tant qu'aucune image active n'est définie, l'app garde son affiche d'origine.
+      </p>
+
+      {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+
+      {loading ? (
+        <div className="flex h-24 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {BANNER_SLOTS.map((b) => {
+            const row = rows[b.slot];
+            const uploading = uploadingSlot === b.slot;
+            return (
+              <div key={b.slot} className={`flex flex-col rounded-2xl border p-3 ${row?.is_active ? 'border-border/30 bg-surface-light' : 'border-border/10 bg-surface-light/50'}`}>
+                <p className="mb-1 text-sm font-semibold text-text">{b.label}</p>
+                <p className="mb-2 text-[11px] leading-snug text-text-muted">{b.hint}</p>
+                <div className="mb-2 aspect-[16/9] overflow-hidden rounded-lg bg-surface">
+                  {row?.image_url
+                    ? <img src={row.image_url} alt={b.slot} className={`h-full w-full object-cover ${row.is_active ? '' : 'opacity-40'}`} />
+                    : <div className="flex h-full items-center justify-center text-[11px] text-text-muted">Image embarquée (par défaut)</div>}
+                </div>
+                <div className="mt-auto flex items-center justify-between">
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white">
+                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    {row ? 'Remplacer' : 'Uploader'}
+                    <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                      onChange={(e) => onUpload(b.slot, e)} />
+                  </label>
+                  {row && (
+                    <div className="flex gap-1">
+                      <button onClick={() => toggle(b.slot, row)} title={row.is_active ? 'Masquer' : 'Afficher'}
+                        className={`rounded-lg p-1.5 ${row.is_active ? 'text-success' : 'text-text-muted'}`}>
+                        {row.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      </button>
+                      <button onClick={() => remove(b.slot)} className="rounded-lg p-1.5 text-danger"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
