@@ -89,7 +89,10 @@ export default function Affiliates() {
     const total = rows.length;
     const active = rows.filter((r) => r.status === 'active').length;
     const suspended = rows.filter((r) => r.status !== 'active').length;
-    const owed = rows.reduce((sum, r) => sum + Number(r.available ?? 0), 0);
+    // Un solde négatif (filleuls gagnants) ne se compense pas d'un affilié à
+    // l'autre : on ne doit rien à celui qui est débiteur, mais on doit toujours
+    // son solde à celui qui est créditeur.
+    const owed = rows.reduce((sum, r) => sum + Math.max(0, Number(r.available ?? 0)), 0);
     return { total, active, suspended, owed };
   }, [rows]);
 
@@ -216,7 +219,11 @@ export default function Affiliates() {
     {
       key: 'available',
       header: 'Disponible',
-      render: (a: AffiliateRow) => <span className="font-semibold text-primary-dark">{fcfa(a.available)}</span>,
+      render: (a: AffiliateRow) => (
+        <span className={`font-semibold ${Number(a.available ?? 0) < 0 ? 'text-red-600' : 'text-primary-dark'}`}>
+          {fcfa(a.available)}
+        </span>
+      ),
     },
     {
       key: 'effective_revenue_percent',
